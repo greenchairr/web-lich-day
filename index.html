@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tra Cứu Lịch Dạy</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        select, button { padding: 10px; font-size: 16px; margin-top: 10px; width: 100%; }
+        #result { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 5px; }
+        .schedule-item { border-bottom: 1px solid #ddd; padding: 10px 0; }
+        .loading { color: blue; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+
+    <h2>Tra Cứu Lịch Dạy</h2>
+    
+    <label for="teacherSelect">Chọn giáo viên:</label>
+    <select id="teacherSelect">
+        <option value="">-- Đang tải danh sách --</option>
+    </select>
+
+    <div id="result">Vui lòng chọn giáo viên để xem lịch.</div>
+
+    <!-- Import Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Cấu hình Firebase của bạn
+        const firebaseConfig = {
+            apiKey: "AIzaSyCFTpGS3B2XrMDqLSLMEKopHlpuBWGzPD8",
+            authDomain: "lich-day-trung-tam-av.firebaseapp.com",
+            projectId: "lich-day-trung-tam-av",
+            storageBucket: "lich-day-trung-tam-av.firebasestorage.app",
+            messagingSenderId: "441046477478",
+            appId: "1:441046477478:web:c10e07e589447ae76b2267",
+            measurementId: "G-XWR1KP7CV3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const teacherSelect = document.getElementById('teacherSelect');
+        const resultDiv = document.getElementById('result');
+
+        // 1. HÀM TỰ ĐỘNG TẢI DANH SÁCH GIÁO VIÊN
+        async function loadTeachers() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "teachers"));
+                
+                // Xóa chữ "Đang tải" đi
+                teacherSelect.innerHTML = '<option value="">-- Chọn giáo viên --</option>';
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // Tạo thẻ <option> với value là teacherId, chữ hiển thị là tên
+                    const option = document.createElement('option');
+                    option.value = data.teacherId;
+                    option.textContent = data.name;
+                    teacherSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Lỗi tải giáo viên:", error);
+                teacherSelect.innerHTML = '<option value="">Lỗi tải dữ liệu</option>';
+            }
+        }
+
+        // 2. HÀM TẢI LỊCH DẠY (Giữ nguyên như cũ)
+        async function loadSchedule(teacherId) {
+            resultDiv.innerHTML = '<span class="loading">Đang tải dữ liệu...</span>';
+            
+            try {
+                const q = query(collection(db, "schedules"), where("teacherId", "==", teacherId));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    resultDiv.innerHTML = '<p>Giáo viên này chưa có lịch dạy.</p>';
+                    return;
+                }
+
+                let html = '';
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const thu = data.dayOfWeek ? `Thứ ${data.dayOfWeek}` : 'Chưa rõ';
+                    html += `
+                        <div class="schedule-item">
+                            <strong>${thu}</strong>: ${data.startTime} - ${data.endTime} <br>
+                            Lớp: ${data.classId} | Phòng: ${data.room}
+                        </div>
+                    `;
+                });
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                console.error("Lỗi:", error);
+                resultDiv.innerHTML = `<span class="error">Lỗi: ${error.message}</span>`;
+            }
+        }
+
+        // 3. KHỞI CHẠY KHI MỞ TRANG
+        // Khi web vừa tải xong, gọi hàm loadTeachers() để đổ dữ liệu vào dropdown
+        loadTeachers();
+
+        // Lắng nghe sự kiện chọn giáo viên
+        teacherSelect.addEventListener('change', (e) => {
+            const teacherId = e.target.value;
+            if (teacherId) {
+                loadSchedule(teacherId);
+            } else {
+                resultDiv.innerHTML = 'Vui lòng chọn giáo viên để xem lịch.';
+            }
+        });
+    </script>
+</body>
+</html>
