@@ -1,2 +1,2 @@
 # web-lich-day
-test lich online
+[test lich online](https://greenchairr.github.io/web-lich-day/)
