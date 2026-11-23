@@ -2,52 +2,51 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Thời Khóa Biểu Trung Tâm</title>
+
+  <!-- PWA / Add to Home Screen -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Lịch Phòng Học" />
+  <link rel="icon" type="image/png" href="./logo.png" />
+  <link rel="apple-touch-icon" href="./logo.png" />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #F8FAFC;
-      color: #0F172A;
-    }
-    .timetable-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
-    .timetable-scroll::-webkit-scrollbar-track { background: #F1F5F9; }
-    .timetable-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
-  </style>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900">
 
   <!-- Thanh tiêu đề trên cùng -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
-      <!-- Logo + Tiêu đề -->
-      <div class="flex items-center gap-2.5 min-w-0">
-        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs sm:text-sm shrink-0">
-          TKB
-        </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 lg:h-20 flex items-center justify-between gap-3">
+      <!-- Icon Lịch + Tiêu đề -->
+      <div class="flex items-center gap-3.5 min-w-0">
+        <img src="./logo.png" alt="Logo Trung Tâm" class="w-10 h-10 lg:w-11 lg:h-11 rounded-xl object-cover shrink-0 shadow-xs bg-white border border-slate-200" />
         <div class="min-w-0">
-          <h1 class="text-sm sm:text-lg font-bold tracking-tight text-slate-900 truncate">
+          <h1 class="text-base sm:text-xl font-bold tracking-tight text-slate-900 truncate">
             <span class="sm:hidden">Lịch Phòng Học</span>
             <span class="hidden sm:inline">Lịch Phòng Học Trung Tâm</span>
           </h1>
-          <p class="text-xs text-slate-500 hidden sm:block truncate">Thời khóa biểu phòng học & giáo viên theo tuần</p>
+          <p class="text-xs lg:text-sm text-slate-500 hidden sm:block truncate">Thời khóa biểu phòng học & giáo viên theo tuần</p>
         </div>
       </div>
 
       <!-- Các nút thao tác -->
-      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <div class="flex items-center gap-2 lg:gap-2.5 shrink-0">
         <!-- Trạng thái kết nối -->
-        <span id="syncStatus" title="Trạng thái kết nối" class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-          <span class="hidden lg:inline">Đang kết nối...</span>
+        <span id="syncStatus" title="Đang kết nối..." class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 shrink-0">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
         </span>
 
         <!-- Tài khoản đang đăng nhập -->
-        <div id="userBadge" class="hidden items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-1.5 rounded-lg text-xs font-medium">
-          <span id="userEmailLabel" class="hidden md:inline max-w-[120px] truncate"></span>
-          <button onclick="logoutTeacher()" title="Đăng xuất" class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-950 font-medium whitespace-nowrap">
+        <div id="userBadge" class="hidden items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 lg:py-2.5 rounded-xl text-xs lg:text-sm font-medium">
+          <span id="userEmailLabel" class="hidden md:inline max-w-[150px] truncate"></span>
+          <button onclick="logoutTeacher()" title="Đăng xuất" class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-950 font-semibold whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
@@ -56,24 +55,24 @@
         </div>
 
         <!-- Nút Quản lý danh sách -->
-        <button id="manageBtn" onclick="openManageModal()" title="Quản lý phòng, giáo viên, môn học" class="hidden items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs sm:text-sm font-medium p-2 sm:px-3 sm:py-2 rounded-lg transition whitespace-nowrap">
-          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <button id="manageBtn" onclick="openManageModal()" title="Quản lý phòng, giáo viên, môn học" class="hidden items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-sm lg:text-base font-medium p-2.5 sm:px-4 sm:py-2.5 rounded-xl transition whitespace-nowrap">
+          <svg class="w-4 h-4 lg:w-5 lg:h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10" />
           </svg>
           <span class="hidden sm:inline">Danh sách</span>
         </button>
 
         <!-- Nút Đặt phòng -->
-        <button id="addLessonBtn" onclick="openLessonModal()" title="Đặt phòng mới" class="hidden items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-medium px-2.5 py-2 sm:px-3.5 sm:py-2 rounded-lg transition shadow-sm whitespace-nowrap">
-          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <button id="addLessonBtn" onclick="openLessonModal()" title="Đặt phòng mới" class="hidden items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm lg:text-base font-medium px-3.5 py-2.5 sm:px-4.5 sm:py-2.5 rounded-xl transition shadow-xs whitespace-nowrap">
+          <svg class="w-4 h-4 lg:w-5 lg:h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           <span>Đặt phòng</span>
         </button>
 
         <!-- Nút Đăng nhập -->
-        <button id="loginBtn" onclick="openLoginModal()" title="Giáo viên đăng nhập" class="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs sm:text-sm font-medium px-2.5 py-2 sm:px-3.5 sm:py-2 rounded-lg transition whitespace-nowrap">
-          <svg class="w-4 h-4 shrink-0 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <button id="loginBtn" onclick="openLoginModal()" title="Giáo viên đăng nhập" class="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-sm lg:text-base font-medium px-3.5 py-2.5 sm:px-4.5 sm:py-2.5 rounded-xl transition whitespace-nowrap">
+          <svg class="w-4 h-4 lg:w-5 lg:h-5 shrink-0 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
           <span>Đăng nhập</span>
@@ -82,104 +81,104 @@
     </div>
   </header>
 
-  <!-- Thanh bộ lọc (Phòng, Giáo viên, Môn học) -->
+  <!-- Thanh bộ lọc -->
   <div class="bg-white border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
-      <div class="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 lg:py-3.5">
+      <div class="grid grid-cols-2 lg:flex lg:flex-wrap items-center gap-2.5 lg:gap-5">
         <!-- Lọc theo phòng -->
-        <div class="flex items-center gap-1.5 min-w-0">
-          <label for="roomFilter" class="text-xs font-medium text-slate-500 shrink-0 hidden sm:inline">Phòng:</label>
-          <select id="roomFilter" onchange="renderTimetable()" class="w-full sm:w-auto text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
+        <div class="flex items-center gap-2 min-w-0">
+          <label for="roomFilter" class="text-sm font-medium text-slate-600 shrink-0 hidden lg:inline">Phòng:</label>
+          <select id="roomFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
             <option value="ALL">Tất cả phòng</option>
           </select>
         </div>
 
         <!-- Lọc theo giáo viên -->
-        <div class="flex items-center gap-1.5 min-w-0">
-          <label for="teacherFilter" class="text-xs font-medium text-slate-500 shrink-0 hidden sm:inline">Giáo viên:</label>
-          <select id="teacherFilter" onchange="renderTimetable()" class="w-full sm:w-auto text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
+        <div class="flex items-center gap-2 min-w-0">
+          <label for="teacherFilter" class="text-sm font-medium text-slate-600 shrink-0 hidden lg:inline">Giáo viên:</label>
+          <select id="teacherFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
             <option value="ALL">Tất cả giáo viên</option>
           </select>
         </div>
 
         <!-- Lọc theo môn học -->
-        <div class="flex items-center gap-1.5 min-w-0">
-          <label for="subjectFilter" class="text-xs font-medium text-slate-500 shrink-0 hidden sm:inline">Môn học:</label>
-          <select id="subjectFilter" onchange="renderTimetable()" class="w-full sm:w-auto text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
-            <option value="ALL">Tất cả môn</option>
+        <div class="col-span-2 flex items-center gap-2 min-w-0">
+          <label for="subjectFilter" class="text-sm font-medium text-slate-600 shrink-0 hidden lg:inline">Môn học:</label>
+          <select id="subjectFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
+            <option value="ALL">Tất cả môn học</option>
           </select>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Chọn ngày trên điện thoại + Nút về Hôm nay -->
-  <div class="md:hidden bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-1.5">
-    <div id="mobileDayTabs" class="grid grid-cols-7 gap-1 flex-1"></div>
-    <button id="mobileTodayBtn" onclick="jumpToToday()" class="shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-semibold border transition whitespace-nowrap">
+  <!-- Thanh chọn ngày trên điện thoại (Cân bằng chiều cao với nút Hôm nay nhờ items-stretch) -->
+  <div class="lg:hidden bg-slate-50 border-b border-slate-200 px-3.5 py-2.5 flex items-stretch gap-2">
+    <div id="mobileDayTabs" class="grid grid-cols-7 gap-1.5 flex-1"></div>
+    <button id="mobileTodayBtn" onclick="jumpToToday()" class="shrink-0 px-3.5 rounded-xl text-sm font-bold border transition whitespace-nowrap flex items-center justify-center">
       Hôm nay
     </button>
   </div>
 
   <!-- Bảng Thời Khóa Biểu Chính -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4">
-    <!-- Bảng trên máy tính (Cố định dòng thứ khi cuộn) -->
-    <div class="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <div class="overflow-auto max-h-[calc(100vh-145px)] timetable-scroll">
-        <table class="w-full border-collapse table-fixed min-w-[1080px]">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 py-4 lg:py-5">
+    <!-- Bảng trên máy tính (>= 1024px) -->
+    <div class="hidden lg:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="overflow-auto max-h-[calc(100vh-170px)] timetable-scroll">
+        <table class="w-full border-collapse table-fixed min-w-[1160px]">
           <thead class="sticky top-0 z-20 bg-slate-50 shadow-2xs">
-            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-700 uppercase tracking-wider">
-              <th class="w-20 py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Giờ</th>
-              <th id="th-Monday" class="py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 2</th>
-              <th id="th-Tuesday" class="py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 3</th>
-              <th id="th-Wednesday" class="py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 4</th>
-              <th id="th-Thursday" class="py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 5</th>
-              <th id="th-Friday" class="py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 6</th>
-              <th id="th-Saturday" class="py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 7</th>
-              <th id="th-Sunday" class="py-3 px-2 text-center bg-slate-50">Chủ Nhật</th>
+            <tr class="border-b border-slate-200 text-sm font-bold text-slate-700 uppercase tracking-wider">
+              <th class="w-24 py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Giờ</th>
+              <th id="th-Monday" class="py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 2</th>
+              <th id="th-Tuesday" class="py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 3</th>
+              <th id="th-Wednesday" class="py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 4</th>
+              <th id="th-Thursday" class="py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 5</th>
+              <th id="th-Friday" class="py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 6</th>
+              <th id="th-Saturday" class="py-3.5 px-2 text-center border-r border-slate-200 bg-slate-50">Thứ 7</th>
+              <th id="th-Sunday" class="py-3.5 px-2 text-center bg-slate-50">Chủ Nhật</th>
             </tr>
           </thead>
-          <tbody id="desktopGridBody" class="divide-y divide-slate-200 text-xs"></tbody>
+          <tbody id="desktopGridBody" class="divide-y divide-slate-200 text-sm"></tbody>
         </table>
       </div>
     </div>
 
     <!-- Danh sách trên điện thoại -->
-    <div id="mobileAgendaList" class="md:hidden space-y-2.5"></div>
+    <div id="mobileAgendaList" class="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
   </main>
 
   <!-- Hộp thoại Đăng nhập Giáo viên -->
-  <div id="loginModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-sm w-full p-5 sm:p-6 shadow-xl border border-slate-200">
+  <div id="loginModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-end sm:items-center justify-center z-50 sm:p-4">
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-base sm:text-lg font-bold text-slate-900">Đăng nhập Giáo viên</h2>
-        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        <h2 class="text-lg font-bold text-slate-900">Đăng nhập Giáo viên</h2>
+        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none p-1">&times;</button>
       </div>
-      <p class="text-xs text-slate-500 mb-4">Đăng nhập bằng tài khoản trung tâm cấp để đặt phòng hoặc chỉnh sửa lịch dạy.</p>
-      <form onsubmit="handleLogin(event)" class="space-y-3">
+      <p class="text-sm text-slate-500 mb-4">Đăng nhập bằng tài khoản trung tâm cấp để đặt phòng hoặc chỉnh sửa lịch dạy.</p>
+      <form onsubmit="handleLogin(event)" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">Email</label>
-          <input type="email" id="loginEmail" required placeholder="giaovien@trungtam.com" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+          <input type="email" id="loginEmail" required placeholder="giaovien@trungtam.com" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">Mật khẩu</label>
-          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
         </div>
-        <p id="loginError" class="text-xs text-red-600 hidden"></p>
+        <p id="loginError" class="text-sm text-red-600 hidden"></p>
         <div class="pt-2 flex justify-end gap-2">
-          <button type="button" onclick="closeLoginModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
-          <button type="submit" id="loginSubmitBtn" class="px-4 py-2 text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-lg">Đăng nhập</button>
+          <button type="button" onclick="closeLoginModal()" class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
+          <button type="submit" id="loginSubmitBtn" class="px-5 py-2.5 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-xl">Đăng nhập</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Hộp thoại Đặt / Sửa Phòng Học -->
-  <div id="lessonModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+  <div id="lessonModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-end sm:items-center justify-center z-50 sm:p-4">
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
-        <h2 id="lessonModalTitle" class="text-base sm:text-lg font-bold text-slate-900">Đặt phòng học</h2>
-        <button onclick="closeLessonModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        <h2 id="lessonModalTitle" class="text-lg font-bold text-slate-900">Đặt phòng học</h2>
+        <button onclick="closeLessonModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none p-1">&times;</button>
       </div>
 
       <form onsubmit="saveLesson(event)" class="space-y-3.5">
@@ -187,24 +186,24 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Giáo viên</label>
-            <select id="teacherSelectInput" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Giáo viên</label>
+            <select id="teacherSelectInput" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Phòng học</label>
-            <select id="roomSelectInput" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Phòng học</label>
+            <select id="roomSelectInput" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">Môn học / Lớp</label>
-          <select id="subjectSelectInput" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Môn học / Lớp</label>
+          <select id="subjectSelectInput" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 sm:gap-3">
+        <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Thứ</label>
-            <select id="dayInput" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Thứ</label>
+            <select id="dayInput" class="w-full border border-slate-300 rounded-xl px-2.5 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
               <option value="Monday">Thứ 2</option>
               <option value="Tuesday">Thứ 3</option>
               <option value="Wednesday">Thứ 4</option>
@@ -215,35 +214,35 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Bắt đầu</label>
-            <select id="startHourInput" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Bắt đầu</label>
+            <select id="startHourInput" class="w-full border border-slate-300 rounded-xl px-2.5 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Thời lượng</label>
-            <select id="durationInput" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Thời lượng</label>
+            <select id="durationInput" class="w-full border border-slate-300 rounded-xl px-2.5 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
+              <option value="1.5" selected>1t 30p</option>
               <option value="1">1 tiếng</option>
-              <option value="1.5">1 tiếng 30p</option>
               <option value="2">2 tiếng</option>
-              <option value="2.5">2 tiếng 30p</option>
+              <option value="2.5">2t 30p</option>
               <option value="3">3 tiếng</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">Ghi chú (Không bắt buộc)</label>
-          <input type="text" id="noteInput" placeholder="VD: Học bù, Dời lịch, Kiểm tra..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ghi chú (Không bắt buộc)</label>
+          <input type="text" id="noteInput" placeholder="VD: Học bù, Dời lịch, Kiểm tra..." class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
         </div>
 
-        <p id="formError" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 hidden"></p>
+        <p id="formError" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-2.5 hidden"></p>
 
         <div class="pt-3 flex items-center justify-between">
-          <button type="button" id="deleteLessonBtn" onclick="deleteLesson()" class="hidden text-xs font-medium text-red-600 hover:text-red-800 px-2 py-1.5">
+          <button type="button" id="deleteLessonBtn" onclick="deleteLesson()" class="hidden text-sm font-semibold text-red-600 hover:text-red-800 px-2 py-2">
             Xóa lịch
           </button>
           <div class="flex items-center gap-2 ml-auto">
-            <button type="button" onclick="closeLessonModal()" class="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
-            <button type="submit" id="saveLessonBtn" class="px-4 py-2 text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-lg">Lưu lịch</button>
+            <button type="button" onclick="closeLessonModal()" class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
+            <button type="submit" id="saveLessonBtn" class="px-5 py-2.5 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-xl">Lưu lịch</button>
           </div>
         </div>
       </form>
@@ -251,25 +250,25 @@
   </div>
 
   <!-- Hộp thoại Quản lý Phòng / Giáo viên / Môn học -->
-  <div id="manageModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-xl border border-slate-200 max-h-[90vh] flex flex-col">
+  <div id="manageModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-end sm:items-center justify-center z-50 sm:p-4">
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-xl border border-slate-200 max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-base sm:text-lg font-bold text-slate-900">Quản lý danh sách</h2>
-        <button onclick="closeManageModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        <h2 class="text-lg font-bold text-slate-900">Quản lý danh sách</h2>
+        <button onclick="closeManageModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none p-1">&times;</button>
       </div>
 
       <!-- Các tab -->
-      <div class="flex border-b border-slate-200 mb-4 text-xs font-semibold">
-        <button id="tabBtn-rooms" onclick="switchManageTab('rooms')" class="px-3.5 py-2.5 border-b-2 border-slate-900 text-slate-900">Phòng học</button>
-        <button id="tabBtn-teachers" onclick="switchManageTab('teachers')" class="px-3.5 py-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800">Giáo viên</button>
-        <button id="tabBtn-subjects" onclick="switchManageTab('subjects')" class="px-3.5 py-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800">Môn học</button>
+      <div class="flex border-b border-slate-200 mb-4 text-sm font-semibold">
+        <button id="tabBtn-rooms" onclick="switchManageTab('rooms')" class="px-4 py-2.5 border-b-2 border-slate-900 text-slate-900">Phòng học</button>
+        <button id="tabBtn-teachers" onclick="switchManageTab('teachers')" class="px-4 py-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800">Giáo viên</button>
+        <button id="tabBtn-subjects" onclick="switchManageTab('subjects')" class="px-4 py-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800">Môn học</button>
       </div>
 
       <!-- Tab: Phòng học -->
       <div id="manageTab-rooms" class="space-y-4 overflow-y-auto flex-1 pr-1">
         <form onsubmit="addRoomItem(event)" class="flex gap-2">
-          <input type="text" id="newRoomName" required placeholder="Tên phòng (VD: Phòng 101)" class="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          <select id="newRoomColor" class="border border-slate-300 rounded-lg px-2 py-2 text-xs sm:text-sm bg-white">
+          <input type="text" id="newRoomName" required placeholder="Tên phòng (VD: Phòng 101)" class="flex-1 min-w-0 border border-slate-300 rounded-xl px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <select id="newRoomColor" class="border border-slate-300 rounded-xl px-2.5 py-2 text-base bg-white">
             <option value="blue">Xanh dương</option>
             <option value="emerald">Xanh lá</option>
             <option value="amber">Vàng cam</option>
@@ -277,774 +276,43 @@
             <option value="rose">Hồng</option>
             <option value="cyan">Xanh ngọc</option>
           </select>
-          <button type="submit" class="bg-slate-900 text-white text-xs font-medium px-3 py-2 rounded-lg hover:bg-slate-800 shrink-0">Thêm</button>
+          <button type="submit" class="bg-slate-900 text-white text-sm font-medium px-3.5 py-2 rounded-xl hover:bg-slate-800 shrink-0">Thêm</button>
         </form>
-        <div id="manageRoomsList" class="divide-y divide-slate-100 border border-slate-200 rounded-lg"></div>
+        <div id="manageRoomsList" class="divide-y divide-slate-100 border border-slate-200 rounded-xl"></div>
       </div>
 
       <!-- Tab: Giáo viên -->
       <div id="manageTab-teachers" class="hidden space-y-4 overflow-y-auto flex-1 pr-1">
         <form onsubmit="addTeacherItem(event)" class="flex gap-2">
-          <input type="text" id="newTeacherName" required placeholder="Tên giáo viên (VD: Thầy Phong)" class="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          <button type="submit" class="bg-slate-900 text-white text-xs font-medium px-3.5 py-2 rounded-lg hover:bg-slate-800 shrink-0">Thêm</button>
+          <input type="text" id="newTeacherName" required placeholder="Tên giáo viên (VD: Thầy Phong)" class="flex-1 min-w-0 border border-slate-300 rounded-xl px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <button type="submit" class="bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-slate-800 shrink-0">Thêm</button>
         </form>
-        <div id="manageTeachersList" class="divide-y divide-slate-100 border border-slate-200 rounded-lg"></div>
-        <p class="text-[11px] text-slate-400">Mẹo: Để tạo tài khoản đăng nhập cho giáo viên mới, thêm email & mật khẩu trong Firebase Console → Authentication → Users.</p>
+        <div id="manageTeachersList" class="divide-y divide-slate-100 border border-slate-200 rounded-xl"></div>
+        <p class="text-xs text-slate-400">Mẹo: Tạo tài khoản đăng nhập cho giáo viên mới trong Firebase Console → Authentication → Users.</p>
       </div>
 
       <!-- Tab: Môn học -->
       <div id="manageTab-subjects" class="hidden space-y-4 overflow-y-auto flex-1 pr-1">
         <form onsubmit="addSubjectItem(event)" class="flex gap-2">
-          <input type="text" id="newSubjectName" required placeholder="Tên môn / lớp (VD: Ngữ Văn 6)" class="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          <button type="submit" class="bg-slate-900 text-white text-xs font-medium px-3.5 py-2 rounded-lg hover:bg-slate-800 shrink-0">Thêm</button>
+          <input type="text" id="newSubjectName" required placeholder="Tên môn / lớp (VD: Ngữ Văn 6)" class="flex-1 min-w-0 border border-slate-300 rounded-xl px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <button type="submit" class="bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-slate-800 shrink-0">Thêm</button>
         </form>
-        <div id="manageSubjectsList" class="divide-y divide-slate-100 border border-slate-200 rounded-lg"></div>
+        <div id="manageSubjectsList" class="divide-y divide-slate-100 border border-slate-200 rounded-xl"></div>
       </div>
 
       <div class="pt-4 mt-4 border-t border-slate-100 flex justify-end">
-        <button onclick="closeManageModal()" class="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg">Xong</button>
+        <button onclick="closeManageModal()" class="px-5 py-2.5 text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl">Xong</button>
       </div>
     </div>
   </div>
 
-  <!-- Firebase SDKs & Logic ứng dụng -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      signOut,
-      onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-    import {
-      getFirestore,
-      collection,
-      onSnapshot,
-      addDoc,
-      updateDoc,
-      deleteDoc,
-      doc
-    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCFTpGS3B2XrMDgLSlMEkopHlpuBWGzPD8",
-      authDomain: "lich-day-trung-tam-av.firebaseapp.com",
-      projectId: "lich-day-trung-tam-av",
-      storageBucket: "lich-day-trung-tam-av.firebasestorage.app",
-      messagingSenderId: "441046477478",
-      appId: "1:441046477478:web:c10e07e589447ae76b2267",
-      measurementId: "G-XWR1KP7CV3"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const lessonsRef = collection(db, "lessons");
-    const roomsRef = collection(db, "rooms");
-    const teachersRef = collection(db, "teachers");
-    const subjectsRef = collection(db, "subjects");
-
-    const COLOR_PALETTE = {
-      blue:    { card: "bg-blue-50 border-blue-200 text-blue-950 hover:border-blue-400",          badge: "bg-blue-100 text-blue-800",       dot: "bg-blue-100 border-blue-300" },
-      emerald: { card: "bg-emerald-50 border-emerald-200 text-emerald-950 hover:border-emerald-400", badge: "bg-emerald-100 text-emerald-800", dot: "bg-emerald-100 border-emerald-300" },
-      amber:   { card: "bg-amber-50 border-amber-200 text-amber-950 hover:border-amber-400",      badge: "bg-amber-100 text-amber-800",     dot: "bg-amber-100 border-amber-300" },
-      purple:  { card: "bg-purple-50 border-purple-200 text-purple-950 hover:border-purple-400",  badge: "bg-purple-100 text-purple-800",   dot: "bg-purple-100 border-purple-300" },
-      rose:    { card: "bg-rose-50 border-rose-200 text-rose-950 hover:border-rose-400",          badge: "bg-rose-100 text-rose-800",       dot: "bg-rose-100 border-rose-300" },
-      cyan:    { card: "bg-cyan-50 border-cyan-200 text-cyan-950 hover:border-cyan-400",          badge: "bg-cyan-100 text-cyan-800",       dot: "bg-cyan-100 border-cyan-300" }
-    };
-
-    const DEFAULT_ROOMS = [
-      { id: "def-1", name: "Phòng 1", color: "blue", isDefault: true },
-      { id: "def-2", name: "Phòng 2", color: "emerald", isDefault: true },
-      { id: "def-3", name: "Phòng 3", color: "amber", isDefault: true },
-      { id: "def-4", name: "Phòng 4", color: "purple", isDefault: true }
-    ];
-
-    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    const DAY_LABELS = {
-      Monday: "Thứ 2",
-      Tuesday: "Thứ 3",
-      Wednesday: "Thứ 4",
-      Thursday: "Thứ 5",
-      Friday: "Thứ 6",
-      Saturday: "Thứ 7",
-      Sunday: "Chủ Nhật"
-    };
-    const DAY_SHORT = {
-      Monday: "T2",
-      Tuesday: "T3",
-      Wednesday: "T4",
-      Thursday: "T5",
-      Friday: "T6",
-      Saturday: "T7",
-      Sunday: "CN"
-    };
-
-    // Khung giờ từ 6:30 đến 20:00
-    const HOURS = Array.from({ length: 28 }, (_, i) => 6.5 + i * 0.5);
-
-    let lessons = [];
-    let roomsList = [...DEFAULT_ROOMS];
-    let teachersList = [];
-    let subjectsList = [];
-    let currentUser = null;
-
-    // Tự động nhận diện ngày hôm nay (0 = Chủ Nhật, 1 = Thứ 2, ..., 6 = Thứ 7)
-    const JS_DAY_MAP = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const TODAY_NAME = JS_DAY_MAP[new Date().getDay()];
-    let selectedMobileDay = TODAY_NAME;
-
-    const startHourSelect = document.getElementById("startHourInput");
-    HOURS.forEach(h => {
-      const opt = document.createElement("option");
-      opt.value = h;
-      opt.textContent = formatHour(h);
-      startHourSelect.appendChild(opt);
-    });
-
-    function formatHour(hourFloat) {
-      const h = Math.floor(hourFloat);
-      const m = Math.round((hourFloat - h) * 60);
-      return `${h}:${String(m).padStart(2, "0")}`;
-    }
-
-    function getRoomTheme(roomName) {
-      const found = roomsList.find(r => r.name === roomName);
-      return COLOR_PALETTE[found?.color] || COLOR_PALETTE.blue;
-    }
-
-    onAuthStateChanged(auth, (user) => {
-      currentUser = user;
-      const loginBtn = document.getElementById("loginBtn");
-      const addLessonBtn = document.getElementById("addLessonBtn");
-      const manageBtn = document.getElementById("manageBtn");
-      const userBadge = document.getElementById("userBadge");
-      const userEmailLabel = document.getElementById("userEmailLabel");
-
-      if (user) {
-        loginBtn.classList.add("hidden");
-        addLessonBtn.classList.remove("hidden");
-        addLessonBtn.classList.add("inline-flex");
-        manageBtn.classList.remove("hidden");
-        manageBtn.classList.add("inline-flex");
-        userBadge.classList.remove("hidden");
-        userBadge.classList.add("inline-flex");
-        userEmailLabel.textContent = user.email;
-      } else {
-        loginBtn.classList.remove("hidden");
-        addLessonBtn.classList.add("hidden");
-        addLessonBtn.classList.remove("inline-flex");
-        manageBtn.classList.add("hidden");
-        manageBtn.classList.remove("inline-flex");
-        userBadge.classList.add("hidden");
-        userBadge.classList.remove("inline-flex");
-      }
-      renderTimetable();
-    });
-
-    onSnapshot(roomsRef, (snap) => {
-      const customRooms = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
-      roomsList = customRooms.length > 0 ? customRooms : [...DEFAULT_ROOMS];
-      syncRoomDropdowns();
-      renderManageLists();
-      renderTimetable();
-    });
-
-    onSnapshot(teachersRef, (snap) => {
-      teachersList = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
-      syncTeacherDropdowns();
-      renderManageLists();
-    });
-
-    onSnapshot(subjectsRef, (snap) => {
-      subjectsList = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
-      syncSubjectDropdowns();
-      renderManageLists();
-    });
-
-    onSnapshot(lessonsRef, (snap) => {
-      lessons = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      syncRoomDropdowns();
-      syncTeacherDropdowns();
-      syncSubjectDropdowns();
-      renderTimetable();
-
-      const status = document.getElementById("syncStatus");
-      status.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="hidden lg:inline">Trực tuyến</span>`;
-    }, () => {
-      const status = document.getElementById("syncStatus");
-      status.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="hidden lg:inline">Lỗi kết nối</span>`;
-    });
-
-    function syncRoomDropdowns() {
-      const filterSelect = document.getElementById("roomFilter");
-      const bookingSelect = document.getElementById("roomSelectInput");
-      const currentFilter = filterSelect.value;
-
-      const bookedRoomNames = [...new Set(lessons.map(l => l.room).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b, "vi"));
-
-      filterSelect.innerHTML = `<option value="ALL">Tất cả phòng</option>`;
-      bookedRoomNames.forEach(roomName => {
-        const opt = document.createElement("option");
-        opt.value = roomName;
-        opt.textContent = roomName;
-        filterSelect.appendChild(opt);
+  <!-- Khởi chạy ứng dụng & đăng ký PWA -->
+  <script type="module" src="./js/actions.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
       });
-      filterSelect.value = bookedRoomNames.includes(currentFilter) ? currentFilter : "ALL";
-
-      bookingSelect.innerHTML = "";
-      roomsList.forEach(room => {
-        const opt2 = document.createElement("option");
-        opt2.value = room.name;
-        opt2.textContent = room.name;
-        bookingSelect.appendChild(opt2);
-      });
-    }
-
-    function syncTeacherDropdowns() {
-      const filterSelect = document.getElementById("teacherFilter");
-      const bookingSelect = document.getElementById("teacherSelectInput");
-      const currentFilter = filterSelect.value;
-
-      const bookedTeachers = [...new Set(lessons.map(l => l.teacherName).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b, "vi"));
-
-      filterSelect.innerHTML = `<option value="ALL">Tất cả giáo viên</option>`;
-      bookedTeachers.forEach(name => {
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = name;
-        filterSelect.appendChild(opt);
-      });
-      filterSelect.value = bookedTeachers.includes(currentFilter) ? currentFilter : "ALL";
-
-      const allManagedTeachers = [...new Set([
-        ...teachersList.map(t => t.name),
-        ...bookedTeachers
-      ].filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
-
-      bookingSelect.innerHTML = "";
-      if (allManagedTeachers.length === 0) {
-        bookingSelect.innerHTML = `<option value="">-- Thêm giáo viên ở Danh sách trước --</option>`;
-      } else {
-        allManagedTeachers.forEach(name => {
-          const opt = document.createElement("option");
-          opt.value = name;
-          opt.textContent = name;
-          bookingSelect.appendChild(opt);
-        });
-      }
-    }
-
-    function syncSubjectDropdowns() {
-      const filterSelect = document.getElementById("subjectFilter");
-      const bookingSelect = document.getElementById("subjectSelectInput");
-      const currentFilter = filterSelect.value;
-
-      // Bộ lọc trên thanh công cụ: CHỈ hiện môn học đang có lịch
-      const bookedSubjects = [...new Set(lessons.map(l => l.subject).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b, "vi"));
-
-      filterSelect.innerHTML = `<option value="ALL">Tất cả môn</option>`;
-      bookedSubjects.forEach(subName => {
-        const opt = document.createElement("option");
-        opt.value = subName;
-        opt.textContent = subName;
-        filterSelect.appendChild(opt);
-      });
-      filterSelect.value = bookedSubjects.includes(currentFilter) ? currentFilter : "ALL";
-
-      // Hộp thoại đặt phòng: hiện tất cả môn trong danh sách
-      const allManagedSubjects = [...new Set([
-        ...subjectsList.map(s => s.name),
-        ...bookedSubjects
-      ].filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
-
-      bookingSelect.innerHTML = `<option value="">-- Không chọn môn --</option>`;
-      allManagedSubjects.forEach(name => {
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = name;
-        bookingSelect.appendChild(opt);
-      });
-    }
-
-    window.renderTimetable = function () {
-      const roomFilter = document.getElementById("roomFilter").value;
-      const teacherFilter = document.getElementById("teacherFilter").value;
-      const subjectFilter = document.getElementById("subjectFilter").value;
-
-      const filtered = lessons.filter(l => {
-        if (roomFilter !== "ALL" && l.room !== roomFilter) return false;
-        if (teacherFilter !== "ALL" && l.teacherName !== teacherFilter) return false;
-        if (subjectFilter !== "ALL" && (l.subject || "") !== subjectFilter) return false;
-        return true;
-      });
-
-      // Tô sáng tiêu đề ngày hôm nay trên bảng máy tính
-      DAYS.forEach(day => {
-        const th = document.getElementById(`th-${day}`);
-        if (!th) return;
-        const borderClass = day === "Sunday" ? "" : "border-r border-slate-200";
-        if (day === TODAY_NAME) {
-          th.className = `py-2.5 px-2 text-center ${borderClass} bg-amber-50/90 text-amber-950 font-bold`;
-          th.innerHTML = `${DAY_LABELS[day]} <span class="block text-[10px] font-semibold text-amber-700 normal-case">Hôm nay</span>`;
-        } else {
-          th.className = `py-3 px-2 text-center ${borderClass} bg-slate-50`;
-          th.textContent = DAY_LABELS[day];
-        }
-      });
-
-      const tbody = document.getElementById("desktopGridBody");
-      tbody.innerHTML = "";
-
-      HOURS.forEach(hour => {
-        const tr = document.createElement("tr");
-        tr.className = "divide-x divide-slate-200";
-
-        const timeTd = document.createElement("td");
-        timeTd.className = "py-2.5 px-2 text-center font-medium text-slate-500 bg-slate-50/50 align-top";
-        timeTd.textContent = formatHour(hour);
-        tr.appendChild(timeTd);
-
-        DAYS.forEach(day => {
-          const td = document.createElement("td");
-          const isToday = day === TODAY_NAME;
-          td.className = `p-1.5 align-top min-h-[58px] transition ${
-            isToday
-              ? (currentUser ? "bg-amber-50/40 hover:bg-amber-50/80 cursor-pointer" : "bg-amber-50/35")
-              : (currentUser ? "hover:bg-slate-50 cursor-pointer" : "")
-          }`;
-
-          if (currentUser) {
-            td.onclick = (e) => {
-              if (e.target === td) openLessonModal(null, day, hour);
-            };
-          }
-
-          const slotLessons = filtered
-            .filter(l => l.day === day && Number(l.startHour) === hour)
-            .sort((a, b) => a.room.localeCompare(b.room, "vi"));
-
-          const stack = document.createElement("div");
-          stack.className = "space-y-1.5";
-
-          slotLessons.forEach(lesson => {
-            const card = document.createElement("div");
-            const theme = getRoomTheme(lesson.room);
-            const endHour = Number(lesson.startHour) + Number(lesson.duration || 1);
-
-            card.className = `p-2 rounded-lg border text-left transition ${theme.card} ${currentUser ? "cursor-pointer shadow-2xs" : ""}`;
-            if (currentUser) {
-              card.onclick = (e) => {
-                e.stopPropagation();
-                openLessonModal(lesson);
-              };
-            }
-
-            card.innerHTML = `
-              <div class="flex flex-wrap items-center justify-between gap-1 mb-1">
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded truncate max-w-full ${theme.badge}">${escapeHtml(lesson.room)}</span>
-                <span class="text-[10px] font-medium opacity-75 whitespace-nowrap">${formatHour(lesson.startHour)}–${formatHour(endHour)}</span>
-              </div>
-              <div class="font-semibold text-xs leading-snug">${escapeHtml(lesson.teacherName)}</div>
-              ${lesson.subject ? `<div class="text-[11px] opacity-80 truncate mt-0.5">${escapeHtml(lesson.subject)}</div>` : ""}
-              ${lesson.note ? `<div class="mt-1 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/85 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(lesson.note)}</div>` : ""}
-            `;
-            stack.appendChild(card);
-          });
-
-          td.appendChild(stack);
-          tr.appendChild(td);
-        });
-
-        tbody.appendChild(tr);
-      });
-
-      renderMobileView(filtered);
-    };
-
-    function renderMobileView(filtered) {
-      const tabsContainer = document.getElementById("mobileDayTabs");
-      tabsContainer.innerHTML = "";
-      DAYS.forEach(day => {
-        const btn = document.createElement("button");
-        const active = day === selectedMobileDay;
-        const isToday = day === TODAY_NAME;
-
-        btn.className = `py-1.5 rounded-lg text-xs font-semibold text-center transition flex flex-col items-center justify-center ${
-          active
-            ? "bg-slate-900 text-white shadow-2xs"
-            : isToday
-              ? "bg-amber-50 text-amber-900 border border-amber-300"
-              : "bg-white text-slate-600 border border-slate-200"
-        }`;
-        btn.innerHTML = `<span>${DAY_SHORT[day]}</span>${isToday ? `<span class="w-1 h-1 rounded-full mt-0.5 ${active ? "bg-amber-400" : "bg-amber-600"}"></span>` : ""}`;
-        btn.onclick = () => {
-          selectedMobileDay = day;
-          renderTimetable();
-        };
-        tabsContainer.appendChild(btn);
-      });
-
-      const todayBtn = document.getElementById("mobileTodayBtn");
-      if (todayBtn) {
-        const isAlreadyToday = selectedMobileDay === TODAY_NAME;
-        todayBtn.disabled = isAlreadyToday;
-        todayBtn.className = isAlreadyToday
-          ? "shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-semibold border border-slate-200 bg-slate-100 text-slate-400 whitespace-nowrap"
-          : "shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-semibold border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 active:scale-95 transition whitespace-nowrap";
-      }
-
-      const list = document.getElementById("mobileAgendaList");
-      const dayLessons = filtered
-        .filter(l => l.day === selectedMobileDay)
-        .sort((a, b) => Number(a.startHour) - Number(b.startHour) || a.room.localeCompare(b.room, "vi"));
-
-      if (dayLessons.length === 0) {
-        list.innerHTML = `<div class="bg-white border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-400">Không có lịch học vào ${DAY_LABELS[selectedMobileDay]}.</div>`;
-        return;
-      }
-
-      list.innerHTML = "";
-      dayLessons.forEach(lesson => {
-        const theme = getRoomTheme(lesson.room);
-        const endHour = Number(lesson.startHour) + Number(lesson.duration || 1);
-
-        const item = document.createElement("div");
-        item.className = `p-3.5 rounded-xl border ${theme.card} flex items-start justify-between gap-3 ${currentUser ? "cursor-pointer active:scale-[0.99]" : ""}`;
-        if (currentUser) {
-          item.onclick = () => openLessonModal(lesson);
-        }
-        item.innerHTML = `
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2 mb-1.5">
-              <span class="text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${theme.badge}">${escapeHtml(lesson.room)}</span>
-              <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">${formatHour(lesson.startHour)} – ${formatHour(endHour)}</span>
-            </div>
-            <div class="font-bold text-sm text-slate-900 truncate">${escapeHtml(lesson.teacherName)}</div>
-            ${lesson.subject ? `<div class="text-xs text-slate-600 mt-0.5 truncate">${escapeHtml(lesson.subject)}</div>` : ""}
-            ${lesson.note ? `<div class="mt-2 inline-block text-xs font-medium px-2 py-0.5 rounded bg-white/90 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(lesson.note)}</div>` : ""}
-          </div>
-          ${currentUser ? `
-            <span class="p-1.5 rounded-lg bg-white/70 text-slate-700 shrink-0" title="Chỉnh sửa">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </span>` : ""}
-        `;
-        list.appendChild(item);
-      });
-    }
-
-    window.jumpToToday = function () {
-      selectedMobileDay = TODAY_NAME;
-      renderTimetable();
-    };
-
-    // Hộp thoại Quản lý danh sách
-    window.openManageModal = function () {
-      if (!currentUser) return;
-      document.getElementById("manageModal").classList.remove("hidden");
-      document.getElementById("manageModal").classList.add("flex");
-    };
-
-    window.closeManageModal = function () {
-      document.getElementById("manageModal").classList.add("hidden");
-      document.getElementById("manageModal").classList.remove("flex");
-    };
-
-    window.switchManageTab = function (tab) {
-      ["rooms", "teachers", "subjects"].forEach(t => {
-        document.getElementById(`manageTab-${t}`).classList.toggle("hidden", t !== tab);
-        const btn = document.getElementById(`tabBtn-${t}`);
-        btn.className = t === tab
-          ? "px-3.5 py-2.5 border-b-2 border-slate-900 text-slate-900"
-          : "px-3.5 py-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800";
-      });
-    };
-
-    function renderManageLists() {
-      const rList = document.getElementById("manageRoomsList");
-      rList.innerHTML = "";
-      roomsList.forEach(r => {
-        const theme = COLOR_PALETTE[r.color] || COLOR_PALETTE.blue;
-        const row = document.createElement("div");
-        row.className = "flex items-center justify-between px-3 py-2.5 text-xs sm:text-sm";
-        row.innerHTML = `
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="w-3 h-3 rounded-sm border shrink-0 ${theme.dot}"></span>
-            <span class="font-medium text-slate-800 truncate">${escapeHtml(r.name)}</span>
-          </div>
-          ${r.isDefault
-            ? `<span class="text-[11px] text-slate-400 shrink-0">Mặc định</span>`
-            : `<button onclick="deleteManageItem('rooms', '${r.id}')" class="text-xs text-red-600 hover:underline shrink-0 ml-2">Xóa</button>`}
-        `;
-        rList.appendChild(row);
-      });
-
-      const tList = document.getElementById("manageTeachersList");
-      tList.innerHTML = teachersList.length === 0
-        ? `<div class="p-4 text-center text-xs text-slate-400">Chưa có giáo viên nào. Hãy thêm ở ô phía trên.</div>`
-        : "";
-      teachersList.forEach(t => {
-        const row = document.createElement("div");
-        row.className = "flex items-center justify-between px-3 py-2.5 text-xs sm:text-sm";
-        row.innerHTML = `
-          <span class="font-medium text-slate-800 truncate">${escapeHtml(t.name)}</span>
-          <button onclick="deleteManageItem('teachers', '${t.id}')" class="text-xs text-red-600 hover:underline shrink-0 ml-2">Xóa</button>
-        `;
-        tList.appendChild(row);
-      });
-
-      const sList = document.getElementById("manageSubjectsList");
-      sList.innerHTML = subjectsList.length === 0
-        ? `<div class="p-4 text-center text-xs text-slate-400">Chưa có môn học nào. Hãy thêm ở ô phía trên.</div>`
-        : "";
-      subjectsList.forEach(s => {
-        const row = document.createElement("div");
-        row.className = "flex items-center justify-between px-3 py-2.5 text-xs sm:text-sm";
-        row.innerHTML = `
-          <span class="font-medium text-slate-800 truncate">${escapeHtml(s.name)}</span>
-          <button onclick="deleteManageItem('subjects', '${s.id}')" class="text-xs text-red-600 hover:underline shrink-0 ml-2">Xóa</button>
-        `;
-        sList.appendChild(row);
-      });
-    }
-
-    window.addRoomItem = async function (e) {
-      e.preventDefault();
-      if (!currentUser) return;
-      const input = document.getElementById("newRoomName");
-      const color = document.getElementById("newRoomColor").value;
-      const name = input.value.trim();
-      if (!name) return;
-
-      const exists = roomsList.some(r => r.name.toLowerCase() === name.toLowerCase());
-      if (exists) {
-        alert(`Phòng "${name}" đã tồn tại trong danh sách!`);
-        return;
-      }
-
-      const hadOnlyDefaults = roomsList.some(r => r.isDefault);
-      await addDoc(roomsRef, { name, color });
-      if (hadOnlyDefaults) {
-        for (const def of DEFAULT_ROOMS) {
-          if (def.name.toLowerCase() !== name.toLowerCase()) {
-            await addDoc(roomsRef, { name: def.name, color: def.color });
-          }
-        }
-      }
-      input.value = "";
-    };
-
-    window.addTeacherItem = async function (e) {
-      e.preventDefault();
-      if (!currentUser) return;
-      const input = document.getElementById("newTeacherName");
-      const name = input.value.trim();
-      if (!name) return;
-
-      const exists = teachersList.some(t => t.name.toLowerCase() === name.toLowerCase());
-      if (exists) {
-        alert(`Giáo viên "${name}" đã có trong danh sách!`);
-        return;
-      }
-
-      await addDoc(teachersRef, { name });
-      input.value = "";
-    };
-
-    window.addSubjectItem = async function (e) {
-      e.preventDefault();
-      if (!currentUser) return;
-      const input = document.getElementById("newSubjectName");
-      const name = input.value.trim();
-      if (!name) return;
-
-      const exists = subjectsList.some(s => s.name.toLowerCase() === name.toLowerCase());
-      if (exists) {
-        alert(`Môn học "${name}" đã có trong danh sách!`);
-        return;
-      }
-
-      await addDoc(subjectsRef, { name });
-      input.value = "";
-    };
-
-    window.deleteManageItem = async function (colName, id) {
-      if (!currentUser) return;
-      await deleteDoc(doc(db, colName, id));
-    };
-
-    // Đăng nhập / Đăng xuất
-    window.openLoginModal = function () {
-      document.getElementById("loginError").classList.add("hidden");
-      document.getElementById("loginModal").classList.remove("hidden");
-      document.getElementById("loginModal").classList.add("flex");
-    };
-
-    window.closeLoginModal = function () {
-      document.getElementById("loginModal").classList.add("hidden");
-      document.getElementById("loginModal").classList.remove("flex");
-    };
-
-    window.handleLogin = async function (e) {
-      e.preventDefault();
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
-      const errEl = document.getElementById("loginError");
-      const btn = document.getElementById("loginSubmitBtn");
-
-      btn.disabled = true;
-      btn.textContent = "Đang đăng nhập...";
-      errEl.classList.add("hidden");
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        closeLoginModal();
-      } catch (err) {
-        errEl.textContent = "Sai email hoặc mật khẩu.";
-        errEl.classList.remove("hidden");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Đăng nhập";
-      }
-    };
-
-    window.logoutTeacher = async function () {
-      await signOut(auth);
-    };
-
-    // Đặt / Sửa phòng học
-    window.openLessonModal = function (lesson = null, defaultDay = "Monday", defaultHour = 9) {
-      if (!currentUser) return;
-      document.getElementById("formError").classList.add("hidden");
-      const deleteBtn = document.getElementById("deleteLessonBtn");
-      const teacherSelect = document.getElementById("teacherSelectInput");
-      const subjectSelect = document.getElementById("subjectSelectInput");
-
-      if (lesson) {
-        document.getElementById("lessonModalTitle").textContent = "Chỉnh sửa lịch phòng";
-        document.getElementById("lessonId").value = lesson.id;
-
-        if (lesson.teacherName && ![...teacherSelect.options].some(o => o.value === lesson.teacherName)) {
-          const opt = document.createElement("option");
-          opt.value = lesson.teacherName;
-          opt.textContent = lesson.teacherName;
-          teacherSelect.appendChild(opt);
-        }
-        teacherSelect.value = lesson.teacherName || "";
-
-        document.getElementById("roomSelectInput").value = lesson.room || roomsList[0]?.name || "";
-
-        if (lesson.subject && ![...subjectSelect.options].some(o => o.value === lesson.subject)) {
-          const opt = document.createElement("option");
-          opt.value = lesson.subject;
-          opt.textContent = lesson.subject;
-          subjectSelect.appendChild(opt);
-        }
-        subjectSelect.value = lesson.subject || "";
-
-        document.getElementById("dayInput").value = lesson.day || "Monday";
-        document.getElementById("startHourInput").value = lesson.startHour ?? 9;
-        document.getElementById("durationInput").value = lesson.duration ?? 1;
-        document.getElementById("noteInput").value = lesson.note || "";
-        deleteBtn.classList.remove("hidden");
-      } else {
-        document.getElementById("lessonModalTitle").textContent = "Đặt phòng học";
-        document.getElementById("lessonId").value = "";
-        if (teacherSelect.options.length > 0) teacherSelect.selectedIndex = 0;
-        document.getElementById("roomSelectInput").value = roomsList[0]?.name || "";
-        subjectSelect.value = "";
-        document.getElementById("dayInput").value = defaultDay;
-        document.getElementById("startHourInput").value = defaultHour;
-        document.getElementById("durationInput").value = 1;
-        document.getElementById("noteInput").value = "";
-        deleteBtn.classList.add("hidden");
-      }
-
-      document.getElementById("lessonModal").classList.remove("hidden");
-      document.getElementById("lessonModal").classList.add("flex");
-    };
-
-    window.closeLessonModal = function () {
-      document.getElementById("lessonModal").classList.add("hidden");
-      document.getElementById("lessonModal").classList.remove("flex");
-    };
-
-    window.saveLesson = async function (e) {
-      e.preventDefault();
-      if (!currentUser) return;
-
-      const id = document.getElementById("lessonId").value;
-      const teacherName = document.getElementById("teacherSelectInput").value.trim();
-      const room = document.getElementById("roomSelectInput").value;
-      const subject = document.getElementById("subjectSelectInput").value;
-      const day = document.getElementById("dayInput").value;
-      const startHour = Number(document.getElementById("startHourInput").value);
-      const duration = Number(document.getElementById("durationInput").value);
-      const note = document.getElementById("noteInput").value.trim();
-      const endHour = startHour + duration;
-
-      const errEl = document.getElementById("formError");
-      if (!teacherName) {
-        errEl.textContent = "Vui lòng chọn giáo viên (hoặc thêm giáo viên trong 'Danh sách' trước).";
-        errEl.classList.remove("hidden");
-        return;
-      }
-
-      const conflict = lessons.find(l => {
-        if (l.id === id) return false;
-        if (l.day !== day || l.room !== room) return false;
-        const lStart = Number(l.startHour);
-        const lEnd = lStart + Number(l.duration || 1);
-        return startHour < lEnd && endHour > lStart;
-      });
-
-      if (conflict) {
-        errEl.textContent = `${room} đã có lịch vào ${DAY_LABELS[day]} từ ${formatHour(conflict.startHour)} đến ${formatHour(Number(conflict.startHour) + Number(conflict.duration || 1))} (${conflict.teacherName}).`;
-        errEl.classList.remove("hidden");
-        return;
-      }
-
-      const btn = document.getElementById("saveLessonBtn");
-      btn.disabled = true;
-      btn.textContent = "Đang lưu...";
-
-      try {
-        const payload = { teacherName, room, subject, day, startHour, duration, note, updatedBy: currentUser.email };
-        if (id) {
-          await updateDoc(doc(db, "lessons", id), payload);
-        } else {
-          await addDoc(lessonsRef, payload);
-        }
-        closeLessonModal();
-      } catch (err) {
-        errEl.textContent = "Không thể lưu lịch. Vui lòng kiểm tra kết nối mạng.";
-        errEl.classList.remove("hidden");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Lưu lịch";
-      }
-    };
-
-    window.deleteLesson = async function () {
-      const id = document.getElementById("lessonId").value;
-      if (!id || !currentUser) return;
-      if (!confirm("Bạn có chắc muốn xóa lịch phòng này không?")) return;
-      await deleteDoc(doc(db, "lessons", id));
-      closeLessonModal();
-    };
-
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
     }
   </script>
 </body>

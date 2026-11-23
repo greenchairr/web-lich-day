@@ -1,0 +1,23 @@
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #F8FAFC;
+  color: #0F172A;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.timetable-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.timetable-scroll::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+.timetable-scroll::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
