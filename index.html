@@ -126,7 +126,7 @@
     <!-- Bảng trên máy tính (Cố định dòng thứ khi cuộn) -->
     <div class="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
       <div class="overflow-auto max-h-[calc(100vh-145px)] timetable-scroll">
-        <table class="w-full border-collapse table-fixed min-w-[920px]">
+        <table class="w-full border-collapse table-fixed min-w-[1080px]">
           <thead class="sticky top-0 z-20 bg-slate-50 shadow-2xs">
             <tr class="border-b border-slate-200 text-xs font-semibold text-slate-700 uppercase tracking-wider">
               <th class="w-20 py-3 px-2 text-center border-r border-slate-200 bg-slate-50">Giờ</th>
@@ -645,8 +645,8 @@
             }
 
             card.innerHTML = `
-              <div class="flex items-center justify-between gap-1 mb-1">
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${theme.badge}">${escapeHtml(lesson.room)}</span>
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-1">
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded truncate max-w-full ${theme.badge}">${escapeHtml(lesson.room)}</span>
                 <span class="text-[10px] font-medium opacity-75 whitespace-nowrap">${formatHour(lesson.startHour)}–${formatHour(endHour)}</span>
               </div>
               <div class="font-semibold text-xs leading-snug">${escapeHtml(lesson.teacherName)}</div>
