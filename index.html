@@ -113,7 +113,7 @@
     </div>
   </div>
 
- <!-- Chọn ngày trên điện thoại + Nút về Hôm nay -->
+  <!-- Chọn ngày trên điện thoại + Nút về Hôm nay -->
   <div class="md:hidden bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-1.5">
     <div id="mobileDayTabs" class="grid grid-cols-7 gap-1 flex-1"></div>
     <button id="mobileTodayBtn" onclick="jumpToToday()" class="shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-semibold border transition whitespace-nowrap">
@@ -326,28 +326,15 @@
       doc
     } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-    // =========================================================================
-    // DÁN FIREBASE CONFIG CỦA BẠN VÀO BÊN DƯỚI
-    // =========================================================================
     const firebaseConfig = {
-
-  apiKey: "AIzaSyCFTpGS3B2XrMDgLSlMEkopHlpuBWGzPD8",
-
-  authDomain: "lich-day-trung-tam-av.firebaseapp.com",
-
-  projectId: "lich-day-trung-tam-av",
-
-  storageBucket: "lich-day-trung-tam-av.firebasestorage.app",
-
-  messagingSenderId: "441046477478",
-
-  appId: "1:441046477478:web:c10e07e589447ae76b2267",
-
-  measurementId: "G-XWR1KP7CV3"
-
-};
-
-    // =========================================================================
+      apiKey: "AIzaSyCFTpGS3B2XrMDgLSlMEkopHlpuBWGzPD8",
+      authDomain: "lich-day-trung-tam-av.firebaseapp.com",
+      projectId: "lich-day-trung-tam-av",
+      storageBucket: "lich-day-trung-tam-av.firebasestorage.app",
+      messagingSenderId: "441046477478",
+      appId: "1:441046477478:web:c10e07e589447ae76b2267",
+      measurementId: "G-XWR1KP7CV3"
+    };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -402,6 +389,7 @@
     let teachersList = [];
     let subjectsList = [];
     let currentUser = null;
+
     // Tự động nhận diện ngày hôm nay (0 = Chủ Nhật, 1 = Thứ 2, ..., 6 = Thứ 7)
     const JS_DAY_MAP = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const TODAY_NAME = JS_DAY_MAP[new Date().getDay()];
@@ -594,21 +582,17 @@
         if (subjectFilter !== "ALL" && (l.subject || "") !== subjectFilter) return false;
         return true;
       });
-      
+
+      // Tô sáng tiêu đề ngày hôm nay trên bảng máy tính
       DAYS.forEach(day => {
-        const isToday = day === TODAY_NAME;
-        td.className = `p-1.5 align-top min-h-[58px] transition ${
-          isToday
-            ? (currentUser ? "bg-amber-50/40 hover:bg-amber-50/80 cursor-pointer" : "bg-amber-50/35")
-            : (currentUser ? "hover:bg-slate-50 cursor-pointer" : "")
-        }`;
         const th = document.getElementById(`th-${day}`);
         if (!th) return;
+        const borderClass = day === "Sunday" ? "" : "border-r border-slate-200";
         if (day === TODAY_NAME) {
-          th.className = "py-3 px-2 text-center border-r border-slate-200 bg-amber-50/90 text-amber-950 font-bold";
+          th.className = `py-2.5 px-2 text-center ${borderClass} bg-amber-50/90 text-amber-950 font-bold`;
           th.innerHTML = `${DAY_LABELS[day]} <span class="block text-[10px] font-semibold text-amber-700 normal-case">Hôm nay</span>`;
         } else {
-          th.className = "py-3 px-2 text-center border-r border-slate-200 bg-slate-50";
+          th.className = `py-3 px-2 text-center ${borderClass} bg-slate-50`;
           th.textContent = DAY_LABELS[day];
         }
       });
@@ -627,7 +611,12 @@
 
         DAYS.forEach(day => {
           const td = document.createElement("td");
-          td.className = `p-1.5 align-top min-h-[58px] transition ${currentUser ? "hover:bg-slate-50 cursor-pointer" : ""}`;
+          const isToday = day === TODAY_NAME;
+          td.className = `p-1.5 align-top min-h-[58px] transition ${
+            isToday
+              ? (currentUser ? "bg-amber-50/40 hover:bg-amber-50/80 cursor-pointer" : "bg-amber-50/35")
+              : (currentUser ? "hover:bg-slate-50 cursor-pointer" : "")
+          }`;
 
           if (currentUser) {
             td.onclick = (e) => {
@@ -681,7 +670,10 @@
       const tabsContainer = document.getElementById("mobileDayTabs");
       tabsContainer.innerHTML = "";
       DAYS.forEach(day => {
+        const btn = document.createElement("button");
+        const active = day === selectedMobileDay;
         const isToday = day === TODAY_NAME;
+
         btn.className = `py-1.5 rounded-lg text-xs font-semibold text-center transition flex flex-col items-center justify-center ${
           active
             ? "bg-slate-900 text-white shadow-2xs"
@@ -690,18 +682,13 @@
               : "bg-white text-slate-600 border border-slate-200"
         }`;
         btn.innerHTML = `<span>${DAY_SHORT[day]}</span>${isToday ? `<span class="w-1 h-1 rounded-full mt-0.5 ${active ? "bg-amber-400" : "bg-amber-600"}"></span>` : ""}`;
-        const btn = document.createElement("button");
-        const active = day === selectedMobileDay;
-        btn.className = `py-2 rounded-lg text-xs font-semibold text-center transition ${
-          active ? "bg-slate-900 text-white shadow-2xs" : "bg-white text-slate-600 border border-slate-200"
-        }`;
-        btn.textContent = DAY_SHORT[day];
         btn.onclick = () => {
           selectedMobileDay = day;
           renderTimetable();
         };
         tabsContainer.appendChild(btn);
       });
+
       const todayBtn = document.getElementById("mobileTodayBtn");
       if (todayBtn) {
         const isAlreadyToday = selectedMobileDay === TODAY_NAME;
@@ -709,7 +696,7 @@
         todayBtn.className = isAlreadyToday
           ? "shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-semibold border border-slate-200 bg-slate-100 text-slate-400 whitespace-nowrap"
           : "shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-semibold border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 active:scale-95 transition whitespace-nowrap";
-      }      
+      }
 
       const list = document.getElementById("mobileAgendaList");
       const dayLessons = filtered
@@ -751,6 +738,7 @@
         list.appendChild(item);
       });
     }
+
     window.jumpToToday = function () {
       selectedMobileDay = TODAY_NAME;
       renderTimetable();
