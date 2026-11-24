@@ -29,10 +29,10 @@
         <img src="./logo.png" alt="Logo Trung Tâm" class="w-10 h-10 lg:w-11 lg:h-11 rounded-xl object-cover shrink-0 shadow-xs bg-white border border-slate-200" />
         <div class="min-w-0">
           <h1 class="text-base sm:text-xl font-bold tracking-tight text-slate-900 truncate">
-            <span class="sm:hidden">Lịch Phòng Học</span>
-            <span class="hidden sm:inline">Lịch Phòng Học Trung Tâm</span>
+            <span class="sm:hidden">Lịch Học</span>
+            <span class="hidden sm:inline">Lịch Học Trung Tâm Anh Việt</span>
           </h1>
-          <p class="text-xs lg:text-sm text-slate-500 hidden sm:block truncate">Thời khóa biểu phòng học & giáo viên theo tuần</p>
+          <p class="text-xs lg:text-sm text-slate-500 hidden sm:block truncate">Thời khóa biểu theo tuần</p>
         </div>
       </div>
 
@@ -42,6 +42,15 @@
         <span id="syncStatus" title="Đang kết nối..." class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 shrink-0">
           <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
         </span>
+        
+        <!-- Nút Lịch sử hoạt động (Ai cũng xem được) -->
+        <button id="historyBtn" onclick="openHistoryModal()" title="Lịch sử đặt / sửa phòng" class="relative inline-flex items-center justify-center w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <span id="historyBadge" class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-bold items-center justify-center shadow-xs">0</span>
+        </button>
+        
 
         <!-- Tài khoản đang đăng nhập -->
         <div id="userBadge" class="hidden items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 lg:py-2.5 rounded-xl text-xs lg:text-sm font-medium">
@@ -83,31 +92,52 @@
 
   <!-- Thanh bộ lọc -->
   <div class="bg-white border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 lg:py-3.5">
-      <div class="grid grid-cols-2 lg:flex lg:flex-wrap items-center gap-2.5 lg:gap-5">
-        <!-- Lọc theo phòng -->
-        <div class="flex items-center gap-2 min-w-0">
-          <label for="roomFilter" class="text-sm font-medium text-slate-600 shrink-0 hidden lg:inline">Phòng:</label>
-          <select id="roomFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
-            <option value="ALL">Tất cả phòng</option>
-          </select>
-        </div>
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 lg:py-3.5">
+      <!-- Nút bấm thu gọn / mở rộng bộ lọc trên điện thoại -->
+      <button type="button" onclick="toggleMobileFilter()" class="lg:hidden w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/70 rounded-xl text-sm font-bold text-slate-800 transition">
+        <span class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 12h12m-9 8h6" />
+          </svg>
+          <span>Lọc lịch học</span>
+          <span id="activeFilterBadge" class="hidden px-2 py-0.5 text-xs font-bold rounded-full bg-slate-900 text-white">0</span>
+        </span>
+        <svg id="mobileFilterChevron" class="w-4 h-4 text-slate-600 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
 
+      <!-- Danh sách các ô lọc (Mặc định ẩn trên điện thoại, luôn hiện trên máy tính) -->
+      <div id="filterControlsPanel" class="hidden lg:flex lg:flex-wrap items-center gap-3 lg:gap-5 pt-3 lg:pt-0 space-y-2.5 lg:space-y-0">
+        
         <!-- Lọc theo giáo viên -->
-        <div class="flex items-center gap-2 min-w-0">
-          <label for="teacherFilter" class="text-sm font-medium text-slate-600 shrink-0 hidden lg:inline">Giáo viên:</label>
-          <select id="teacherFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-2 min-w-0">
+          <label for="teacherFilter" class="text-xs lg:text-sm font-semibold lg:font-medium text-slate-500 lg:text-slate-600 shrink-0">Giáo viên</label>
+          <select id="teacherFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-sm lg:text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 lg:py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900">
             <option value="ALL">Tất cả giáo viên</option>
           </select>
         </div>
 
         <!-- Lọc theo môn học -->
-        <div class="col-span-2 flex items-center gap-2 min-w-0">
-          <label for="subjectFilter" class="text-sm font-medium text-slate-600 shrink-0 hidden lg:inline">Môn học:</label>
-          <select id="subjectFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 truncate">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-2 min-w-0">
+          <label for="subjectFilter" class="text-xs lg:text-sm font-semibold lg:font-medium text-slate-500 lg:text-slate-600 shrink-0">Môn học</label>
+          <select id="subjectFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-sm lg:text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 lg:py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900">
             <option value="ALL">Tất cả môn học</option>
           </select>
         </div>
+        
+        <!-- Lọc theo phòng -->
+        <div class="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-2 min-w-0">
+          <label for="roomFilter" class="text-xs lg:text-sm font-semibold lg:font-medium text-slate-500 lg:text-slate-600 shrink-0">Phòng</label>
+          <select id="roomFilter" onchange="renderTimetable()" class="w-full lg:w-auto text-sm lg:text-base bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 lg:py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900">
+            <option value="ALL">Tất cả phòng</option>
+          </select>
+        </div>
+
+        <!-- Nút đặt lại bộ lọc (Chỉ hiện khi đang lọc) -->
+        <button id="resetFilterBtn" type="button" onclick="resetFilters()" class="hidden w-full lg:w-auto text-sm font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-xl transition">
+          Xóa bộ lọc
+        </button>
       </div>
     </div>
   </div>
@@ -144,30 +174,35 @@
     </div>
 
     <!-- Danh sách trên điện thoại -->
-    <div id="mobileAgendaList" class="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+    <div id="mobileAgendaList" class="lg:hidden grid grid-cols-1 sm:grid-cols-3 gap-3.5"></div>
   </main>
 
-  <!-- Hộp thoại Đăng nhập Giáo viên -->
+  <!-- Hộp thoại Đăng nhập -->
   <div id="loginModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-end sm:items-center justify-center z-50 sm:p-4">
-    <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-bold text-slate-900">Đăng nhập Giáo viên</h2>
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-slate-900">Đăng nhập Quản lý / Giáo viên</h2>
         <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none p-1">&times;</button>
       </div>
-      <p class="text-sm text-slate-500 mb-4">Đăng nhập bằng tài khoản trung tâm cấp để đặt phòng hoặc chỉnh sửa lịch dạy.</p>
-      <form onsubmit="handleLogin(event)" class="space-y-3.5">
+      <form onsubmit="submitLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-          <input type="email" id="loginEmail" required placeholder="giaovien@trungtam.com" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
+          <input id="loginEmail" type="email" required placeholder="giaovien@trungtam.vn" class="w-full text-base border border-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-900">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu</label>
-          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Mật khẩu</label>
+          <input id="loginPassword" type="password" required placeholder="••••••••" class="w-full text-base border border-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-900">
         </div>
+
+        <label class="flex items-center gap-2.5 cursor-pointer select-none pt-0.5">
+          <input id="rememberMeCheckbox" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900">
+          <span class="text-sm font-medium text-slate-700">Ghi nhớ đăng nhập</span>
+        </label>
+
         <p id="loginError" class="text-sm text-red-600 hidden"></p>
-        <div class="pt-2 flex justify-end gap-2">
-          <button type="button" onclick="closeLoginModal()" class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
-          <button type="submit" id="loginSubmitBtn" class="px-5 py-2.5 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-xl">Đăng nhập</button>
+        <div class="flex justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeLoginModal()" class="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
+          <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl">Đăng nhập</button>
         </div>
       </form>
     </div>
@@ -184,7 +219,7 @@
       <form onsubmit="saveLesson(event)" class="space-y-3.5">
         <input type="hidden" id="lessonId" />
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Giáo viên</label>
             <select id="teacherSelectInput" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
@@ -308,6 +343,26 @@
 
   <!-- Khởi chạy ứng dụng & đăng ký PWA -->
   <script type="module" src="./js/actions.js"></script>
+  
+  <!-- Hộp thoại Lịch sử Hoạt động -->
+  <div id="historyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-end sm:items-center justify-center z-50 sm:p-4">
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-xl border border-slate-200 max-h-[88vh] flex flex-col">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="text-lg font-bold text-slate-900">Lịch sử thay đổi phòng học</h2>
+        <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none p-1">&times;</button>
+      </div>
+      <p class="text-xs sm:text-sm text-slate-500 mb-4">Hiển thị 50 thay đổi gần nhất. Giáo viên đăng nhập có thể khôi phục lịch đã xóa.</p>
+
+      <div id="historyList" class="space-y-2.5 overflow-y-auto flex-1 pr-1"></div>
+
+      <div class="pt-4 mt-4 border-t border-slate-100 flex justify-end">
+        <button onclick="closeHistoryModal()" class="px-5 py-2.5 text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl">Đóng</button>
+      </div>
+    </div>
+  </div>
+  
+
+
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
