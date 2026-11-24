@@ -20,3 +20,4 @@ export const lessonsRef = collection(db, "lessons");
 export const roomsRef = collection(db, "rooms");
 export const teachersRef = collection(db, "teachers");
 export const subjectsRef = collection(db, "subjects");
+export const logsRef = collection(db, "logs");

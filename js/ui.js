@@ -44,6 +44,7 @@ export const state = {
   roomsList: [...DEFAULT_ROOMS],
   teachersList: [],
   subjectsList: [],
+  logsList: [],
   currentUser: null,
   selectedMobileDay: TODAY_NAME
 };
@@ -86,7 +87,7 @@ export function syncRoomDropdowns() {
   const bookedRoomNames = [...new Set(state.lessons.map(l => l.room).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, "vi"));
 
-  filterSelect.innerHTML = `<option value="ALL">Tất cả phòng</option>`;
+  filterSelect.innerHTML = `<option value="ALL">Tất cả các phòng</option>`;
   bookedRoomNames.forEach(roomName => {
     const opt = document.createElement("option");
     opt.value = roomName;
@@ -112,7 +113,7 @@ export function syncTeacherDropdowns() {
   const bookedTeachers = [...new Set(state.lessons.map(l => l.teacherName).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, "vi"));
 
-  filterSelect.innerHTML = `<option value="ALL">Tất cả giáo viên</option>`;
+  filterSelect.innerHTML = `<option value="ALL">Tất cả Giáo Viên</option>`;
   bookedTeachers.forEach(name => {
     const opt = document.createElement("option");
     opt.value = name;
@@ -174,6 +175,18 @@ export function renderTimetable() {
   const roomFilter = document.getElementById("roomFilter").value;
   const teacherFilter = document.getElementById("teacherFilter").value;
   const subjectFilter = document.getElementById("subjectFilter").value;
+
+  // Cập nhật huy hiệu số lượng bộ lọc đang bật & nút Xóa lọc
+  const activeCount = [roomFilter, teacherFilter, subjectFilter].filter(v => v !== "ALL").length;
+  const filterBadge = document.getElementById("activeFilterBadge");
+  const resetBtn = document.getElementById("resetFilterBtn");
+  if (filterBadge) {
+    filterBadge.textContent = activeCount;
+    filterBadge.classList.toggle("hidden", activeCount === 0);
+  }
+  if (resetBtn) {
+    resetBtn.classList.toggle("hidden", activeCount === 0);
+  }
 
   const filtered = state.lessons.filter(l => {
     if (roomFilter !== "ALL" && l.room !== roomFilter) return false;
@@ -384,5 +397,80 @@ export function renderManageLists() {
       <button onclick="deleteManageItem('subjects', '${s.id}')" class="text-xs font-semibold text-red-600 hover:underline shrink-0 ml-2">Xóa</button>
     `;
     sList.appendChild(row);
+  });
+}
+
+function formatLogTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  return `${hh}:${mm} • ${dd}/${mo}`;
+}
+
+export function updateHistoryBadge() {
+  const badge = document.getElementById("historyBadge");
+  if (!badge) return;
+  const lastSeen = Number(localStorage.getItem("tkb_last_seen_log") || 0);
+  const unreadCount = (state.logsList || []).filter(item => (item.createdAt || 0) > lastSeen).length;
+
+  if (unreadCount > 0) {
+    badge.textContent = unreadCount > 9 ? "9+" : unreadCount;
+    badge.classList.remove("hidden");
+    badge.classList.add("inline-flex");
+  } else {
+    badge.classList.add("hidden");
+    badge.classList.remove("inline-flex");
+  }
+}
+
+export function renderHistoryList() {
+  const container = document.getElementById("historyList");
+  if (!container) return;
+
+  const logs = state.logsList || [];
+  if (logs.length === 0) {
+    container.innerHTML = `<div class="p-8 text-center text-sm text-slate-400 border border-slate-200 rounded-xl">Chưa có lịch sử hoạt động nào.</div>`;
+    return;
+  }
+
+  const ACTION_META = {
+    create:  { label: "Đặt mới",   cls: "bg-emerald-100 text-emerald-800" },
+    update:  { label: "Chỉnh sửa", cls: "bg-amber-100 text-amber-800" },
+    delete:  { label: "Đã xóa",    cls: "bg-red-100 text-red-800" },
+    restore: { label: "Khôi phục", cls: "bg-blue-100 text-blue-800" }
+  };
+
+  container.innerHTML = "";
+  logs.forEach(log => {
+    const meta = ACTION_META[log.action] || ACTION_META.create;
+    const snap = log.lesson || {};
+    const endHour = Number(snap.startHour || 0) + Number(snap.duration || 1.5);
+    const canRestore = state.currentUser && (log.action === "delete" || log.action === "update") && snap.room;
+
+    const card = document.createElement("div");
+    card.className = "p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1.5";
+    card.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-bold px-2 py-0.5 rounded-md ${meta.cls}">${meta.label}</span>
+        <span class="text-xs text-slate-500 font-medium">${formatLogTime(log.createdAt)}</span>
+      </div>
+      <div class="text-sm font-bold text-slate-900">
+        ${escapeHtml(snap.teacherName || "")} • ${escapeHtml(snap.room || "")}
+      </div>
+      <div class="text-xs sm:text-sm text-slate-700">
+        ${DAY_LABELS[snap.day] || snap.day || ""} (${formatHour(snap.startHour || 0)} – ${formatHour(endHour)})${snap.subject ? ` • ${escapeHtml(snap.subject)}` : ""}
+      </div>
+      ${log.detail ? `<div class="text-xs text-slate-500 italic">${escapeHtml(log.detail)}</div>` : ""}
+      ${state.currentUser ? `
+        <div class="pt-1 flex items-center justify-between gap-2">
+          <span class="text-[11px] text-slate-400 truncate">Bởi: ${escapeHtml(log.by || "Giáo viên")}</span>
+          ${canRestore ? `<button onclick="restoreFromLog('${log.id}')" class="text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition shrink-0">Khôi phục</button>` : ""}
+        </div>
+      ` : ""}
+    `;
+    container.appendChild(card);
   });
 }
