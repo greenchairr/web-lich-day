@@ -21,7 +21,8 @@ import {
   renderTimetable,
   renderManageLists,
   updateHistoryBadge,
-  renderHistoryList
+  renderHistoryList,
+  syncInternetClock
 } from "./ui.js";
 
 initHourOptions();
@@ -34,8 +35,10 @@ onAuthStateChanged(auth, (user) => {
   const manageBtn = document.getElementById("manageBtn");
   const userBadge = document.getElementById("userBadge");
   const userEmailLabel = document.getElementById("userEmailLabel");
+  const headerTitleWrap = document.getElementById("headerTitleWrap");
 
   if (user) {
+    if (headerTitleWrap) headerTitleWrap.classList.add("hidden", "sm:block");
     loginBtn.classList.add("hidden");
     addLessonBtn.classList.remove("hidden");
     addLessonBtn.classList.add("inline-flex");
@@ -45,6 +48,7 @@ onAuthStateChanged(auth, (user) => {
     userBadge.classList.add("inline-flex");
     userEmailLabel.textContent = user.email;
   } else {
+    if (headerTitleWrap) headerTitleWrap.classList.remove("hidden", "sm:block");
     loginBtn.classList.remove("hidden");
     addLessonBtn.classList.add("hidden");
     addLessonBtn.classList.remove("inline-flex");
@@ -56,6 +60,7 @@ onAuthStateChanged(auth, (user) => {
   renderTimetable();
   renderHistoryList();
 });
+
 
 // Đồng bộ dữ liệu thời gian thực
 onSnapshot(roomsRef, (snap) => {
@@ -113,6 +118,7 @@ async function writeActivityLog(action, lessonData, detail = "") {
         day: lessonData.day || "",
         startHour: Number(lessonData.startHour || 0),
         duration: Number(lessonData.duration || 1.5),
+        status: lessonData.status || "normal",
         note: lessonData.note || ""
       },
       detail,
@@ -129,6 +135,7 @@ window.jumpToToday = function () {
   state.selectedMobileDay = TODAY_NAME;
   renderTimetable();
 };
+
 window.toggleMobileFilter = function () {
   const panel = document.getElementById("filterControlsPanel");
   const chevron = document.getElementById("mobileFilterChevron");
@@ -209,6 +216,7 @@ window.restoreFromLog = async function (logId) {
     day: snap.day,
     startHour,
     duration: Number(snap.duration || 1.5),
+    status: snap.status || "normal",
     note: snap.note || "",
     updatedBy: state.currentUser.email
   };
@@ -300,9 +308,108 @@ window.addSubjectItem = async function (e) {
   input.value = "";
 };
 
-window.deleteManageItem = async function (colName, id) {
+window.renameManageItem = async function (colName, id) {
   if (!state.currentUser) return;
-  await deleteDoc(doc(db, colName, id));
+
+  const listMap = {
+    rooms:    { list: state.roomsList,    field: "room",        label: "tên phòng" },
+    teachers: { list: state.teachersList, field: "teacherName", label: "tên giáo viên" },
+    subjects: { list: state.subjectsList, field: "subject",     label: "tên môn học" }
+  };
+
+  const target = listMap[colName];
+  if (!target) return;
+
+  const item = target.list.find(x => x.id === id);
+  if (!item) return;
+
+  const input = prompt(`Nhập ${target.label} mới:`, item.name);
+  if (input === null) return;
+
+  const newName = input.trim();
+  if (!newName || newName === item.name) return;
+
+  const duplicate = target.list.some(
+    x => x.id !== id && x.name.toLowerCase() === newName.toLowerCase()
+  );
+  if (duplicate) {
+    alert(`Tên "${newName}" đã tồn tại trong danh sách.`);
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, colName, id), { name: newName });
+
+    const affectedLessons = state.lessons.filter(l => l[target.field] === item.name);
+    if (affectedLessons.length > 0) {
+      await Promise.all(
+        affectedLessons.map(l => updateDoc(doc(db, "lessons", l.id), { [target.field]: newName }))
+      );
+    }
+  } catch (err) {
+    alert("Lỗi cập nhật tên: " + err.message);
+  }
+};
+
+let deleteCountdownTimer = null;
+
+window.closeConfirmDeleteModal = function () {
+  if (deleteCountdownTimer) {
+    clearInterval(deleteCountdownTimer);
+    deleteCountdownTimer = null;
+  }
+  const modal = document.getElementById("confirmDeleteModal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+  }
+};
+
+window.deleteManageItem = function (colName, id) {
+  if (!state.currentUser) return;
+
+  const listMap = {
+    rooms:    { list: state.roomsList,    label: "phòng học" },
+    teachers: { list: state.teachersList, label: "giáo viên" },
+    subjects: { list: state.subjectsList, label: "môn học" }
+  };
+  const target = listMap[colName];
+  const item = target?.list.find(x => x.id === id);
+  const itemName = item ? `"${item.name}"` : "mục này";
+
+  const modal = document.getElementById("confirmDeleteModal");
+  const msgEl = document.getElementById("confirmDeleteMessage");
+  const yesBtn = document.getElementById("confirmDeleteYesBtn");
+
+  msgEl.textContent = `Bạn có chắc chắn muốn xóa ${target?.label || "mục"} ${itemName} khỏi danh sách không?`;
+
+  let secondsLeft = 3;
+  yesBtn.disabled = true;
+  yesBtn.textContent = `Có (${secondsLeft}s)`;
+  yesBtn.className = "px-4 py-2 text-sm font-bold rounded-xl bg-slate-200 text-slate-400 cursor-not-allowed transition min-w-[96px]";
+  yesBtn.onclick = null;
+
+  if (deleteCountdownTimer) clearInterval(deleteCountdownTimer);
+
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+
+  deleteCountdownTimer = setInterval(() => {
+    secondsLeft -= 1;
+    if (secondsLeft > 0) {
+      yesBtn.textContent = `Có (${secondsLeft}s)`;
+    } else {
+      clearInterval(deleteCountdownTimer);
+      deleteCountdownTimer = null;
+      yesBtn.disabled = false;
+      yesBtn.textContent = "Có, xóa";
+      yesBtn.className = "px-4 py-2 text-sm font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white cursor-pointer transition min-w-[96px]";
+      yesBtn.onclick = async () => {
+        closeConfirmDeleteModal();
+        await deleteDoc(doc(db, colName, id));
+      };
+    }
+  }, 1000);
 };
 
 // Đăng nhập / Đăng xuất
@@ -317,36 +424,28 @@ window.closeLoginModal = function () {
   document.getElementById("loginModal").classList.remove("flex");
 };
 
-window.handleLogin = async function (e) {
-  e.preventDefault();
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
-  const errEl = document.getElementById("loginError");
-  const btn = document.getElementById("loginSubmitBtn");
-
-  btn.disabled = true;
-  btn.textContent = "Đang đăng nhập...";
-  errEl.classList.add("hidden");
-
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-    closeLoginModal();
-  } catch (err) {
-    errEl.textContent = "Sai email hoặc mật khẩu.";
-    errEl.classList.remove("hidden");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Đăng nhập";
-  }
-};
-
 window.logoutTeacher = async function () {
   await signOut(auth);
+};
+
+window.selectLessonStatus = function (status) {
+  const input = document.getElementById("lessonStatus");
+  if (input) input.value = status;
+  document.querySelectorAll(".status-pill-btn").forEach(btn => {
+    const active = btn.dataset.status === status;
+    btn.className = active
+      ? "status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition bg-slate-900 text-white border-slate-900"
+      : "status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100";
+  });
 };
 
 // Đặt / Sửa phòng học
 window.openLessonModal = function (lesson = null, defaultDay = TODAY_NAME, defaultHour = 9) {
   if (!state.currentUser) return;
+
+  const initialStatus = lesson?.status || (lesson?.isMakeup ? "makeup" : "normal");
+  selectLessonStatus(initialStatus);
+
   document.getElementById("formError").classList.add("hidden");
   const deleteBtn = document.getElementById("deleteLessonBtn");
   const teacherSelect = document.getElementById("teacherSelectInput");
@@ -412,6 +511,7 @@ window.saveLesson = async function (e) {
   const day = document.getElementById("dayInput").value;
   const startHour = Number(document.getElementById("startHourInput").value);
   const duration = Number(document.getElementById("durationInput").value);
+  const status = document.getElementById("lessonStatus")?.value || "normal";
   const note = document.getElementById("noteInput").value.trim();
   const endHour = startHour + duration;
 
@@ -441,7 +541,18 @@ window.saveLesson = async function (e) {
   btn.textContent = "Đang lưu...";
 
   try {
-    const payload = { teacherName, room, subject, day, startHour, duration, note, updatedBy: state.currentUser.email };
+    const payload = {
+      teacherName,
+      room,
+      subject,
+      day,
+      startHour,
+      duration,
+      status,
+      isMakeup: status === "makeup",
+      note,
+      updatedBy: state.currentUser.email
+    };
     if (id) {
       const oldLesson = state.lessons.find(l => l.id === id);
       await updateDoc(doc(db, "lessons", id), payload);
@@ -475,3 +586,8 @@ window.deleteLesson = async function () {
   }
   closeLessonModal();
 };
+
+syncInternetClock().then(() => renderTimetable());
+setInterval(() => {
+  renderTimetable();
+}, 60 * 1000);

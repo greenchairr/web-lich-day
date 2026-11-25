@@ -24,6 +24,7 @@ export const DAY_LABELS = {
   Saturday: "Thứ 7",
   Sunday: "Chủ Nhật"
 };
+
 export const DAY_SHORT = {
   Monday: "T2",
   Tuesday: "T3",
@@ -33,6 +34,67 @@ export const DAY_SHORT = {
   Saturday: "T7",
   Sunday: "CN"
 };
+
+let serverTimeOffsetMs = 0;
+
+export async function syncInternetClock() {
+  try {
+    const res = await fetch("https://www.gstatic.com/generate_204", {
+      method: "HEAD",
+      cache: "no-store"
+    });
+    const dateHeader = res.headers.get("Date");
+    if (dateHeader) {
+      serverTimeOffsetMs = new Date(dateHeader).getTime() - Date.now();
+    }
+  } catch (_) {
+    try {
+      const res = await fetch("https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh");
+      const data = await res.json();
+      if (data?.unixtime) {
+        serverTimeOffsetMs = data.unixtime * 1000 - Date.now();
+      }
+    } catch (_) {}
+  }
+}
+
+export function getVietnamNowInfo() {
+  const trueUtcMs = Date.now() + serverTimeOffsetMs;
+  const vnDate = new Date(trueUtcMs + 7 * 3600 * 1000);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = dayNames[vnDate.getUTCDay()];
+  const currentHour = vnDate.getUTCHours() + vnDate.getUTCMinutes() / 60;
+  return { dayName, currentHour };
+}
+
+function getLessonStatusMeta(lesson) {
+  const { dayName: todayName, currentHour } = getVietnamNowInfo();
+  const endHour = Number(lesson.startHour) + Number(lesson.duration || 1);
+  const status = lesson.status || (lesson.isMakeup ? "makeup" : "normal");
+
+  const isToday = lesson.day === todayName;
+  const isOngoing = isToday && status !== "off" && currentHour >= Number(lesson.startHour) && currentHour < endHour;
+  const isFinished = isToday && currentHour >= endHour;
+
+  const badgesHtml = [
+    isOngoing ? `<span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white"><span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>Đang học</span>` : "",
+    isFinished && status !== "off" ? `<span class="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-600">Đã xong</span>` : "",
+    status === "makeup" ? `<span class="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">📝 Học bù</span>` : "",
+    status === "off" ? `<span class="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200">🚫 Nghỉ</span>` : ""
+  ].filter(Boolean).join(" ");
+
+  const cardStateClass = status === "off"
+    ? "opacity-65 border-dashed"
+    : isFinished
+      ? "opacity-60"
+      : isOngoing
+        ? "ring-2 ring-emerald-500 shadow-md"
+        : "";
+
+  const textStateClass = status === "off" ? " text-slate-500" : "";
+
+  return { endHour, badgesHtml, cardStateClass, textStateClass };
+}
 
 export const HOURS = Array.from({ length: 28 }, (_, i) => 6.5 + i * 0.5);
 
@@ -122,16 +184,14 @@ export function syncTeacherDropdowns() {
   });
   filterSelect.value = bookedTeachers.includes(currentFilter) ? currentFilter : "ALL";
 
-  const allManagedTeachers = [...new Set([
-    ...state.teachersList.map(t => t.name),
-    ...bookedTeachers
-  ].filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+  const managedTeachers = [...new Set(state.teachersList.map(t => t.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "vi"));
 
   bookingSelect.innerHTML = "";
-  if (allManagedTeachers.length === 0) {
+  if (managedTeachers.length === 0) {
     bookingSelect.innerHTML = `<option value="">-- Thêm giáo viên ở Danh sách trước --</option>`;
   } else {
-    allManagedTeachers.forEach(name => {
+    managedTeachers.forEach(name => {
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
@@ -157,13 +217,11 @@ export function syncSubjectDropdowns() {
   });
   filterSelect.value = bookedSubjects.includes(currentFilter) ? currentFilter : "ALL";
 
-  const allManagedSubjects = [...new Set([
-    ...state.subjectsList.map(s => s.name),
-    ...bookedSubjects
-  ].filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+  const managedSubjects = [...new Set(state.subjectsList.map(s => s.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "vi"));
 
   bookingSelect.innerHTML = `<option value="">-- Không chọn môn --</option>`;
-  allManagedSubjects.forEach(name => {
+  managedSubjects.forEach(name => {
     const opt = document.createElement("option");
     opt.value = name;
     opt.textContent = name;
@@ -176,7 +234,6 @@ export function renderTimetable() {
   const teacherFilter = document.getElementById("teacherFilter").value;
   const subjectFilter = document.getElementById("subjectFilter").value;
 
-  // Cập nhật huy hiệu số lượng bộ lọc đang bật & nút Xóa lọc
   const activeCount = [roomFilter, teacherFilter, subjectFilter].filter(v => v !== "ALL").length;
   const filterBadge = document.getElementById("activeFilterBadge");
   const resetBtn = document.getElementById("resetFilterBtn");
@@ -195,12 +252,13 @@ export function renderTimetable() {
     return true;
   });
 
-  // Tô sáng tiêu đề ngày hôm nay trên bảng máy tính
+  const { dayName: todayName } = getVietnamNowInfo();
+
   DAYS.forEach(day => {
     const th = document.getElementById(`th-${day}`);
     if (!th) return;
     const borderClass = day === "Sunday" ? "" : "border-r border-slate-200";
-    if (day === TODAY_NAME) {
+    if (day === todayName) {
       th.className = `py-3 px-2 text-center ${borderClass} bg-amber-50/90 text-amber-950 font-bold`;
       th.innerHTML = `${DAY_LABELS[day]} <span class="block text-xs font-semibold text-amber-700 normal-case">Hôm nay</span>`;
     } else {
@@ -223,7 +281,7 @@ export function renderTimetable() {
 
     DAYS.forEach(day => {
       const td = document.createElement("td");
-      const isToday = day === TODAY_NAME;
+      const isToday = day === todayName;
       td.className = `p-2 align-top min-h-[68px] transition ${
         isToday
           ? (state.currentUser ? "bg-amber-50/40 hover:bg-amber-50/80 cursor-pointer" : "bg-amber-50/35")
@@ -246,9 +304,9 @@ export function renderTimetable() {
       slotLessons.forEach(lesson => {
         const card = document.createElement("div");
         const theme = getRoomTheme(lesson.room);
-        const endHour = Number(lesson.startHour) + Number(lesson.duration || 1);
+        const { endHour, badgesHtml, cardStateClass, textStateClass } = getLessonStatusMeta(lesson);
 
-        card.className = `p-2.5 rounded-xl border text-left transition ${theme.card} ${state.currentUser ? "cursor-pointer shadow-2xs" : ""}`;
+        card.className = `p-2.5 rounded-xl border text-left transition ${theme.card} ${cardStateClass} ${state.currentUser ? "cursor-pointer shadow-2xs" : ""}`;
         if (state.currentUser) {
           card.onclick = (e) => {
             e.stopPropagation();
@@ -261,8 +319,9 @@ export function renderTimetable() {
             <span class="text-xs font-bold px-2 py-0.5 rounded-md truncate max-w-full ${theme.badge}">${escapeHtml(lesson.room)}</span>
             <span class="text-xs font-medium opacity-80 whitespace-nowrap">${formatHour(lesson.startHour)}–${formatHour(endHour)}</span>
           </div>
-          <div class="font-bold text-sm leading-snug">${escapeHtml(lesson.teacherName)}</div>
-          ${lesson.subject ? `<div class="text-xs opacity-85 truncate mt-0.5">${escapeHtml(lesson.subject)}</div>` : ""}
+          ${badgesHtml ? `<div class="flex flex-wrap gap-1 mb-1.5">${badgesHtml}</div>` : ""}
+          <div class="font-bold text-sm leading-snug ${textStateClass}">${escapeHtml(lesson.teacherName)}</div>
+          ${lesson.subject ? `<div class="text-xs opacity-85 truncate mt-0.5 ${textStateClass}">${escapeHtml(lesson.subject)}</div>` : ""}
           ${lesson.note ? `<div class="mt-1.5 inline-block text-xs font-medium px-2 py-0.5 rounded-md bg-white/85 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(lesson.note)}</div>` : ""}
         `;
         stack.appendChild(card);
@@ -281,20 +340,23 @@ export function renderTimetable() {
 function renderMobileView(filtered) {
   const tabsContainer = document.getElementById("mobileDayTabs");
   tabsContainer.innerHTML = "";
+  const { dayName: todayName } = getVietnamNowInfo();
 
   DAYS.forEach(day => {
     const btn = document.createElement("button");
     const active = day === state.selectedMobileDay;
-    const isToday = day === TODAY_NAME;
+    const isToday = day === todayName;
 
-    btn.className = `py-2.5 rounded-xl text-sm font-bold text-center transition flex flex-col items-center justify-center ${
+    btn.className = `h-12 rounded-xl text-sm font-bold text-center transition flex flex-col items-center justify-center ${
       active
         ? "bg-slate-900 text-white shadow-xs"
         : isToday
           ? "bg-amber-50 text-amber-900 border border-amber-300"
           : "bg-white text-slate-600 border border-slate-200"
     }`;
-    btn.innerHTML = `<span>${DAY_SHORT[day]}</span>${isToday ? `<span class="w-1.5 h-1.5 rounded-full mt-0.5 ${active ? "bg-amber-400" : "bg-amber-600"}"></span>` : ""}`;
+    btn.innerHTML = `<span>${DAY_SHORT[day]}</span><span class="w-1.5 h-1.5 rounded-full mt-0.5 ${
+      isToday ? (active ? "bg-amber-400" : "bg-amber-600") : "opacity-0"
+    }"></span>`;
     btn.onclick = () => {
       state.selectedMobileDay = day;
       renderTimetable();
@@ -304,7 +366,7 @@ function renderMobileView(filtered) {
 
   const todayBtn = document.getElementById("mobileTodayBtn");
   if (todayBtn) {
-    const isAlreadyToday = state.selectedMobileDay === TODAY_NAME;
+    const isAlreadyToday = state.selectedMobileDay === todayName;
     todayBtn.disabled = isAlreadyToday;
     todayBtn.className = isAlreadyToday
       ? "shrink-0 px-3.5 rounded-xl text-sm font-bold border border-slate-200 bg-slate-100 text-slate-400 whitespace-nowrap flex items-center justify-center"
@@ -324,10 +386,10 @@ function renderMobileView(filtered) {
   list.innerHTML = "";
   dayLessons.forEach(lesson => {
     const theme = getRoomTheme(lesson.room);
-    const endHour = Number(lesson.startHour) + Number(lesson.duration || 1);
+    const { endHour, badgesHtml, cardStateClass, textStateClass } = getLessonStatusMeta(lesson);
 
     const item = document.createElement("div");
-    item.className = `p-4 rounded-2xl border ${theme.card} flex items-start justify-between gap-3 ${state.currentUser ? "cursor-pointer active:scale-[0.99]" : ""}`;
+    item.className = `p-4 rounded-2xl border ${theme.card} ${cardStateClass} flex items-start justify-between gap-3 ${state.currentUser ? "cursor-pointer active:scale-[0.99]" : ""}`;
     if (state.currentUser) {
       item.onclick = () => window.openLessonModal(lesson);
     }
@@ -336,9 +398,10 @@ function renderMobileView(filtered) {
         <div class="flex flex-wrap items-center gap-2 mb-2">
           <span class="text-xs font-bold px-2.5 py-1 rounded-lg whitespace-nowrap ${theme.badge}">${escapeHtml(lesson.room)}</span>
           <span class="text-sm font-semibold text-slate-700 whitespace-nowrap">${formatHour(lesson.startHour)} – ${formatHour(endHour)}</span>
+          ${badgesHtml}
         </div>
-        <div class="font-bold text-base text-slate-900 truncate">${escapeHtml(lesson.teacherName)}</div>
-        ${lesson.subject ? `<div class="text-sm text-slate-600 mt-0.5 truncate">${escapeHtml(lesson.subject)}</div>` : ""}
+        <div class="font-bold text-base text-slate-900 truncate ${textStateClass}">${escapeHtml(lesson.teacherName)}</div>
+        ${lesson.subject ? `<div class="text-sm text-slate-600 mt-0.5 truncate ${textStateClass}">${escapeHtml(lesson.subject)}</div>` : ""}
         ${lesson.note ? `<div class="mt-2 inline-block text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(lesson.note)}</div>` : ""}
       </div>
       ${state.currentUser ? `
@@ -366,7 +429,10 @@ export function renderManageLists() {
       </div>
       ${r.isDefault
         ? `<span class="text-xs text-slate-400 shrink-0">Mặc định</span>`
-        : `<button onclick="deleteManageItem('rooms', '${r.id}')" class="text-xs font-semibold text-red-600 hover:underline shrink-0 ml-2">Xóa</button>`}
+        : `<div class="flex items-center gap-3 shrink-0 ml-2">
+            <button onclick="renameManageItem('rooms', '${r.id}')" class="text-xs font-semibold text-blue-600 hover:underline">Sửa</button>
+            <button onclick="deleteManageItem('rooms', '${r.id}')" class="text-xs font-semibold text-red-600 hover:underline">Xóa</button>
+          </div>`}
     `;
     rList.appendChild(row);
   });
@@ -380,7 +446,10 @@ export function renderManageLists() {
     row.className = "flex items-center justify-between px-3.5 py-3 text-sm";
     row.innerHTML = `
       <span class="font-medium text-slate-800 truncate">${escapeHtml(t.name)}</span>
-      <button onclick="deleteManageItem('teachers', '${t.id}')" class="text-xs font-semibold text-red-600 hover:underline shrink-0 ml-2">Xóa</button>
+      <div class="flex items-center gap-3 shrink-0 ml-2">
+        <button onclick="renameManageItem('teachers', '${t.id}')" class="text-xs font-semibold text-blue-600 hover:underline">Sửa</button>
+        <button onclick="deleteManageItem('teachers', '${t.id}')" class="text-xs font-semibold text-red-600 hover:underline">Xóa</button>
+      </div>
     `;
     tList.appendChild(row);
   });
@@ -394,7 +463,10 @@ export function renderManageLists() {
     row.className = "flex items-center justify-between px-3.5 py-3 text-sm";
     row.innerHTML = `
       <span class="font-medium text-slate-800 truncate">${escapeHtml(s.name)}</span>
-      <button onclick="deleteManageItem('subjects', '${s.id}')" class="text-xs font-semibold text-red-600 hover:underline shrink-0 ml-2">Xóa</button>
+      <div class="flex items-center gap-3 shrink-0 ml-2">
+        <button onclick="renameManageItem('subjects', '${s.id}')" class="text-xs font-semibold text-blue-600 hover:underline">Sửa</button>
+        <button onclick="deleteManageItem('subjects', '${s.id}')" class="text-xs font-semibold text-red-600 hover:underline">Xóa</button>
+      </div>
     `;
     sList.appendChild(row);
   });
