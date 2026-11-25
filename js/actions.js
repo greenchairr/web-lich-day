@@ -30,6 +30,8 @@ initHourOptions();
 const OFFLINE_CACHE_KEY = "tkb_offline_snapshot_v1";
 
 function saveOfflineSnapshot() {
+  // Chỉ lưu khi thực sự có dữ liệu và đang có mạng (tránh ghi đè mảng rỗng khi offline)
+  if (!navigator.onLine || state.lessons.length === 0) return;
   try {
     localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({
       lessons: state.lessons,
@@ -63,9 +65,9 @@ function loadOfflineSnapshot() {
 }
 
 function syncOfflineStatus() {
-  const isOnline = navigator.onLine;
   const status = document.getElementById("syncStatus");
-  if (!isOnline && status) {
+  if (!status) return;
+  if (!navigator.onLine) {
     status.title = "Ngoại tuyến (Đang xem bản lưu)";
     status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>`;
   }
@@ -140,21 +142,29 @@ onSnapshot(subjectsRef, (snap) => {
 });
 
 onSnapshot(lessonsRef, (snap) => {
+  // Nếu Firestore trả về rỗng từ cache cục bộ trong khi đã có bản lưu offline, giữ nguyên lịch đã nạp
+  if (snap.empty && state.lessons.length > 0 && (!navigator.onLine || snap.metadata.fromCache)) {
+    syncOfflineStatus();
+    return;
+  }
+
   state.lessons = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  syncRoomDropdowns();
-  syncTeacherDropdowns();
-  syncSubjectDropdowns();
   renderTimetable();
   saveOfflineSnapshot();
 
   const status = document.getElementById("syncStatus");
-  status.title = "Đồng bộ thành công";
-  status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>`;
+  if (status) {
+    if (navigator.onLine && !snap.metadata.fromCache) {
+      status.title = "Đã đồng bộ";
+      status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>`;
+    } else {
+      syncOfflineStatus();
+    }
+  }
 }, () => {
-  const status = document.getElementById("syncStatus");
-  status.title = "Chưa kết nối / Lỗi mạng";
-  status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>`;
+  syncOfflineStatus();
 });
+
 
 // Đồng bộ 50 lịch sử hoạt động gần nhất
 const recentLogsQuery = query(logsRef, orderBy("createdAt", "desc"), limit(50));
