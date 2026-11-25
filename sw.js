@@ -1,4 +1,4 @@
-const CACHE_NAME = "tkb-trung-tam-v1.11";
+const CACHE_NAME = "tkb-trung-tam-v1.12";
 const APP_SHELL = [
   "./",
   "./index.html",
