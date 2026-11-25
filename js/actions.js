@@ -107,10 +107,56 @@ onSnapshot(recentLogsQuery, (snap) => {
   renderHistoryList();
 });
 
-async function writeActivityLog(action, lessonData, detail = "") {
+let appDialogResolver = null;
+
+function showAppNotice(message, title = "Thông báo") {
+  return new Promise((resolve) => {
+    appDialogResolver = resolve;
+    document.getElementById("appDialogTitle").textContent = title;
+    document.getElementById("appDialogMessage").textContent = message;
+    document.getElementById("appDialogCancelBtn").classList.add("hidden");
+    const okBtn = document.getElementById("appDialogOkBtn");
+    okBtn.textContent = "Đã hiểu";
+    okBtn.className = "px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl";
+    const modal = document.getElementById("appDialogModal");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  });
+}
+
+function showAppConfirm(message, title = "Xác nhận", okText = "Đồng ý", danger = false) {
+  return new Promise((resolve) => {
+    appDialogResolver = resolve;
+    document.getElementById("appDialogTitle").textContent = title;
+    document.getElementById("appDialogMessage").textContent = message;
+    document.getElementById("appDialogCancelBtn").classList.remove("hidden");
+    const okBtn = document.getElementById("appDialogOkBtn");
+    okBtn.textContent = okText;
+    okBtn.className = danger
+      ? "px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl"
+      : "px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl";
+    const modal = document.getElementById("appDialogModal");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  });
+}
+
+window.closeAppDialog = function (result) {
+  const modal = document.getElementById("appDialogModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+  if (appDialogResolver) {
+    const fn = appDialogResolver;
+    appDialogResolver = null;
+    fn(result);
+  }
+};
+
+async function writeActivityLog(action, lessonData, detail = "", lessonId = "") {
   try {
     await addDoc(logsRef, {
       action,
+      lessonId,
       lesson: {
         teacherName: lessonData.teacherName || "",
         room: lessonData.room || "",
@@ -118,7 +164,7 @@ async function writeActivityLog(action, lessonData, detail = "") {
         day: lessonData.day || "",
         startHour: Number(lessonData.startHour || 0),
         duration: Number(lessonData.duration || 1.5),
-        status: lessonData.status || "normal",
+        status: lessonData.status || (lessonData.isMakeup ? "makeup" : "normal"),
         note: lessonData.note || ""
       },
       detail,
@@ -194,8 +240,11 @@ window.restoreFromLog = async function (logId) {
   const snap = log.lesson;
   const startHour = Number(snap.startHour);
   const endHour = startHour + Number(snap.duration || 1.5);
+  const existingLesson = log.lessonId ? state.lessons.find(l => l.id === log.lessonId) : null;
 
+  // Bỏ qua chính lịch đang sửa (existingLesson.id) khi kiểm tra trùng phòng
   const conflict = state.lessons.find(l => {
+    if (existingLesson && l.id === existingLesson.id) return false;
     if (l.day !== snap.day || l.room !== snap.room) return false;
     const lStart = Number(l.startHour);
     const lEnd = lStart + Number(l.duration || 1);
@@ -203,12 +252,21 @@ window.restoreFromLog = async function (logId) {
   });
 
   if (conflict) {
-    alert(`Không thể khôi phục vì ${snap.room} vào ${DAY_LABELS[snap.day]} (${formatHour(startHour)}–${formatHour(endHour)}) hiện đã có lịch của ${conflict.teacherName}.`);
+    await showAppNotice(
+      `Không thể khôi phục vì ${snap.room} vào ${DAY_LABELS[snap.day]} (${formatHour(startHour)}–${formatHour(endHour)}) hiện đã có lịch của ${conflict.teacherName}.`,
+      "Trùng lịch phòng"
+    );
     return;
   }
 
-  if (!confirm(`Khôi phục lịch của ${snap.teacherName} tại ${snap.room} (${DAY_LABELS[snap.day]}, ${formatHour(startHour)})?`)) return;
+  const ok = await showAppConfirm(
+    `Khôi phục lịch của ${snap.teacherName} tại ${snap.room} (${DAY_LABELS[snap.day]}, ${formatHour(startHour)}) về trạng thái trước đó?`,
+    "Khôi phục lịch học",
+    "Khôi phục"
+  );
+  if (!ok) return;
 
+  const restoredStatus = snap.status || (snap.isMakeup ? "makeup" : "normal");
   const payload = {
     teacherName: snap.teacherName,
     room: snap.room,
@@ -216,13 +274,19 @@ window.restoreFromLog = async function (logId) {
     day: snap.day,
     startHour,
     duration: Number(snap.duration || 1.5),
-    status: snap.status || "normal",
+    status: restoredStatus,
+    isMakeup: restoredStatus === "makeup",
     note: snap.note || "",
     updatedBy: state.currentUser.email
   };
 
-  await addDoc(lessonsRef, payload);
-  await writeActivityLog("restore", payload, "Khôi phục từ lịch sử");
+  if (existingLesson) {
+    await updateDoc(doc(db, "lessons", existingLesson.id), payload);
+    await writeActivityLog("restore", payload, "Hoàn tác chỉnh sửa", existingLesson.id);
+  } else {
+    const newRef = await addDoc(lessonsRef, payload);
+    await writeActivityLog("restore", payload, "Khôi phục từ lịch sử", newRef.id);
+  }
   closeHistoryModal();
 };
 
@@ -258,7 +322,7 @@ window.addRoomItem = async function (e) {
 
   const exists = state.roomsList.some(r => r.name.toLowerCase() === name.toLowerCase());
   if (exists) {
-    alert(`Phòng "${name}" đã tồn tại trong danh sách!`);
+    await showAppNotice(`Phòng "${name}" đã tồn tại trong danh sách!`, "Trùng tên phòng");
     return;
   }
 
@@ -283,10 +347,9 @@ window.addTeacherItem = async function (e) {
 
   const exists = state.teachersList.some(t => t.name.toLowerCase() === name.toLowerCase());
   if (exists) {
-    alert(`Giáo viên "${name}" đã có trong danh sách!`);
+    await showAppNotice(`Giáo viên "${name}" đã có trong danh sách!`, "Trùng tên giáo viên");
     return;
   }
-
   await addDoc(teachersRef, { name });
   input.value = "";
 };
@@ -300,7 +363,7 @@ window.addSubjectItem = async function (e) {
 
   const exists = state.subjectsList.some(s => s.name.toLowerCase() === name.toLowerCase());
   if (exists) {
-    alert(`Môn học "${name}" đã có trong danh sách!`);
+    await showAppNotice(`Môn học "${name}" đã có trong danh sách!`, "Trùng tên môn học");
     return;
   }
 
@@ -308,7 +371,16 @@ window.addSubjectItem = async function (e) {
   input.value = "";
 };
 
-window.renameManageItem = async function (colName, id) {
+let pendingRename = null;
+
+window.closeRenameModal = function () {
+  pendingRename = null;
+  const modal = document.getElementById("renameModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+};
+
+window.renameManageItem = function (colName, id) {
   if (!state.currentUser) return;
 
   const listMap = {
@@ -318,38 +390,58 @@ window.renameManageItem = async function (colName, id) {
   };
 
   const target = listMap[colName];
-  if (!target) return;
-
-  const item = target.list.find(x => x.id === id);
+  const item = target?.list.find(x => x.id === id);
   if (!item) return;
 
-  const input = prompt(`Nhập ${target.label} mới:`, item.name);
-  if (input === null) return;
+  pendingRename = { colName, id, target, item };
+  document.getElementById("renameModalTitle").textContent = `Đổi ${target.label}`;
+  const input = document.getElementById("renameModalInput");
+  input.value = item.name;
+  document.getElementById("renameModalError").classList.add("hidden");
 
-  const newName = input.trim();
-  if (!newName || newName === item.name) return;
+  const modal = document.getElementById("renameModal");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+};
+
+window.submitRenameModal = async function (e) {
+  e.preventDefault();
+  if (!pendingRename || !state.currentUser) return;
+
+  const { colName, id, target, item } = pendingRename;
+  const newName = document.getElementById("renameModalInput").value.trim();
+  const errEl = document.getElementById("renameModalError");
+
+  if (!newName || newName === item.name) {
+    closeRenameModal();
+    return;
+  }
 
   const duplicate = target.list.some(
     x => x.id !== id && x.name.toLowerCase() === newName.toLowerCase()
   );
   if (duplicate) {
-    alert(`Tên "${newName}" đã tồn tại trong danh sách.`);
+    errEl.textContent = `Tên "${newName}" đã tồn tại trong danh sách.`;
+    errEl.classList.remove("hidden");
     return;
   }
 
   try {
     await updateDoc(doc(db, colName, id), { name: newName });
-
     const affectedLessons = state.lessons.filter(l => l[target.field] === item.name);
     if (affectedLessons.length > 0) {
       await Promise.all(
         affectedLessons.map(l => updateDoc(doc(db, "lessons", l.id), { [target.field]: newName }))
       );
     }
+    closeRenameModal();
   } catch (err) {
-    alert("Lỗi cập nhật tên: " + err.message);
+    errEl.textContent = "Lỗi cập nhật tên: " + err.message;
+    errEl.classList.remove("hidden");
   }
 };
+
 
 let deleteCountdownTimer = null;
 
@@ -556,13 +648,14 @@ window.saveLesson = async function (e) {
     if (id) {
       const oldLesson = state.lessons.find(l => l.id === id);
       await updateDoc(doc(db, "lessons", id), payload);
+      const statusLabels = { normal: "Bình thường", makeup: "Học bù", off: "Báo nghỉ" };
       const detail = oldLesson
-        ? `Trước sửa: ${oldLesson.room}, ${DAY_LABELS[oldLesson.day]} ${formatHour(oldLesson.startHour)}`
+        ? `Đổi sang: ${room}, ${DAY_LABELS[day]} ${formatHour(startHour)} (${statusLabels[status] || "Bình thường"})`
         : "";
-      await writeActivityLog("update", payload, detail);
+      await writeActivityLog("update", oldLesson || payload, detail, id);
     } else {
-      await addDoc(lessonsRef, payload);
-      await writeActivityLog("create", payload);
+      const createdRef = await addDoc(lessonsRef, payload);
+      await writeActivityLog("create", payload, "", createdRef.id);
     }
     closeLessonModal();
   } catch (err) {
@@ -577,7 +670,7 @@ window.saveLesson = async function (e) {
 window.deleteLesson = async function () {
   const id = document.getElementById("lessonId").value;
   if (!id || !state.currentUser) return;
-  if (!confirm("Bạn có chắc muốn xóa lịch phòng này không?")) return;
+  if (!(await showAppConfirm("Bạn có chắc muốn xóa lịch phòng này không?", "Xóa lịch học", "Xóa lịch", true))) return;
 
   const target = state.lessons.find(l => l.id === id);
   await deleteDoc(doc(db, "lessons", id));
