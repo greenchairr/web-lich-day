@@ -378,6 +378,34 @@
     </div>
   </div>
   
+  <!-- Hộp thoại Đổi tên (Thay thế prompt() của trình duyệt) -->
+  <div id="renameModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-[60] p-4">
+    <form onsubmit="submitRenameModal(event)" class="bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 shadow-xl border border-slate-200 space-y-4">
+      <h3 id="renameModalTitle" class="text-base font-bold text-slate-900">Đổi tên</h3>
+      <input id="renameModalInput" type="text" required class="w-full text-base border border-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+      <p id="renameModalError" class="text-xs text-red-600 hidden"></p>
+      <div class="flex justify-end gap-2.5 pt-1">
+        <button type="button" onclick="closeRenameModal()" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
+        <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl">Lưu tên mới</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Hộp thoại Thông báo / Xác nhận chung (Thay thế alert() & confirm() của trình duyệt) -->
+  <div id="appDialogModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-[70] p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 shadow-xl border border-slate-200 space-y-4">
+      <div>
+        <h3 id="appDialogTitle" class="text-base font-bold text-slate-900">Thông báo</h3>
+        <p id="appDialogMessage" class="text-sm text-slate-600 mt-1.5 leading-relaxed"></p>
+      </div>
+      <div class="flex justify-end gap-2.5 pt-1">
+        <button type="button" id="appDialogCancelBtn" onclick="closeAppDialog(false)" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
+        <button type="button" id="appDialogOkBtn" onclick="closeAppDialog(true)" class="px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl">Đồng ý</button>
+      </div>
+    </div>
+  </div>
+  
+  
   <!-- Hộp thoại Lịch sử Hoạt động -->
   <div id="historyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-end sm:items-center justify-center z-50 sm:p-4">
     <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-xl border border-slate-200 max-h-[88vh] flex flex-col">
