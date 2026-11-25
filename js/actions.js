@@ -27,6 +27,59 @@ import {
 
 initHourOptions();
 
+const OFFLINE_CACHE_KEY = "tkb_offline_snapshot_v1";
+
+function saveOfflineSnapshot() {
+  try {
+    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({
+      lessons: state.lessons,
+      roomsList: state.roomsList,
+      teachersList: state.teachersList,
+      subjectsList: state.subjectsList,
+      logsList: state.logsList
+    }));
+  } catch (_) {}
+}
+
+function loadOfflineSnapshot() {
+  try {
+    const raw = localStorage.getItem(OFFLINE_CACHE_KEY);
+    if (!raw) return;
+    const cached = JSON.parse(raw);
+    if (Array.isArray(cached.roomsList) && cached.roomsList.length > 0) state.roomsList = cached.roomsList;
+    if (Array.isArray(cached.teachersList)) state.teachersList = cached.teachersList;
+    if (Array.isArray(cached.subjectsList)) state.subjectsList = cached.subjectsList;
+    if (Array.isArray(cached.lessons)) state.lessons = cached.lessons;
+    if (Array.isArray(cached.logsList)) state.logsList = cached.logsList;
+
+    syncRoomDropdowns();
+    syncTeacherDropdowns();
+    syncSubjectDropdowns();
+    renderManageLists();
+    renderTimetable();
+    updateHistoryBadge();
+    renderHistoryList();
+  } catch (_) {}
+}
+
+function syncOfflineStatus() {
+  const isOnline = navigator.onLine;
+  const status = document.getElementById("syncStatus");
+  if (!isOnline && status) {
+    status.title = "Ngoại tuyến (Đang xem bản lưu)";
+    status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>`;
+  }
+}
+
+window.addEventListener("offline", syncOfflineStatus);
+window.addEventListener("online", () => {
+  syncInternetClock().then(() => renderTimetable());
+});
+
+loadOfflineSnapshot();
+syncOfflineStatus();
+
+
 // Theo dõi đăng nhập
 onAuthStateChanged(auth, (user) => {
   state.currentUser = user;
@@ -69,18 +122,21 @@ onSnapshot(roomsRef, (snap) => {
   syncRoomDropdowns();
   renderManageLists();
   renderTimetable();
+  saveOfflineSnapshot();
 });
 
 onSnapshot(teachersRef, (snap) => {
   state.teachersList = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
   syncTeacherDropdowns();
   renderManageLists();
+  saveOfflineSnapshot();
 });
 
 onSnapshot(subjectsRef, (snap) => {
   state.subjectsList = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
   syncSubjectDropdowns();
   renderManageLists();
+  saveOfflineSnapshot();
 });
 
 onSnapshot(lessonsRef, (snap) => {
@@ -89,6 +145,7 @@ onSnapshot(lessonsRef, (snap) => {
   syncTeacherDropdowns();
   syncSubjectDropdowns();
   renderTimetable();
+  saveOfflineSnapshot();
 
   const status = document.getElementById("syncStatus");
   status.title = "Đồng bộ thành công";
@@ -105,6 +162,7 @@ onSnapshot(recentLogsQuery, (snap) => {
   state.logsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   updateHistoryBadge();
   renderHistoryList();
+  saveOfflineSnapshot();
 });
 
 let appDialogResolver = null;
@@ -292,6 +350,7 @@ window.restoreFromLog = async function (logId) {
 
 // Quản lý danh sách
 window.openManageModal = function () {
+if (!state.currentUser || !navigator.onLine) return;
   if (!state.currentUser) return;
   document.getElementById("manageModal").classList.remove("hidden");
   document.getElementById("manageModal").classList.add("flex");
@@ -533,6 +592,7 @@ window.selectLessonStatus = function (status) {
 
 // Đặt / Sửa phòng học
 window.openLessonModal = function (lesson = null, defaultDay = TODAY_NAME, defaultHour = 9) {
+if (!state.currentUser || !navigator.onLine) return;
   if (!state.currentUser) return;
 
   const initialStatus = lesson?.status || (lesson?.isMakeup ? "makeup" : "normal");
