@@ -169,11 +169,17 @@ onSnapshot(lessonsRef, (snap) => {
 // Đồng bộ 50 lịch sử hoạt động gần nhất
 const recentLogsQuery = query(logsRef, orderBy("createdAt", "desc"), limit(50));
 onSnapshot(recentLogsQuery, (snap) => {
+  // Giữ nguyên lịch sử thay đổi đã nạp từ localStorage nếu Firestore trả về rỗng lúc mất mạng
+  if (snap.empty && state.logsList.length > 0 && (!navigator.onLine || snap.metadata.fromCache)) {
+    return;
+  }
+
   state.logsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   updateHistoryBadge();
   renderHistoryList();
   saveOfflineSnapshot();
 });
+
 
 let appDialogResolver = null;
 
