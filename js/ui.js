@@ -64,13 +64,30 @@ export function getVietnamNowInfo() {
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayName = dayNames[vnDate.getUTCDay()];
   const currentHour = vnDate.getUTCHours() + vnDate.getUTCMinutes() / 60;
-  return { dayName, currentHour };
+  const dateStr = vnDate.toISOString().slice(0, 10);
+  return { dayName, currentHour, dateStr };
+}
+
+export function isLessonStatusExpired(lesson) {
+  const status = lesson.status || (lesson.isMakeup ? "makeup" : "normal");
+  if (status !== "makeup" && status !== "off") return false;
+
+  const { dayName, currentHour, dateStr } = getVietnamNowInfo();
+  if (lesson.targetDate) {
+    if (dateStr > lesson.targetDate) return true;
+    if (dateStr === lesson.targetDate && currentHour >= 23) return true;
+    return false;
+  }
+
+  return lesson.day === dayName && currentHour >= 23;
 }
 
 function getLessonStatusMeta(lesson) {
   const { dayName: todayName, currentHour } = getVietnamNowInfo();
   const endHour = Number(lesson.startHour) + Number(lesson.duration || 1);
-  const status = lesson.status || (lesson.isMakeup ? "makeup" : "normal");
+  const rawStatus = lesson.status || (lesson.isMakeup ? "makeup" : "normal");
+  const expired = isLessonStatusExpired(lesson);
+  const status = (rawStatus === "off" && expired) ? "normal" : rawStatus;
 
   const isToday = lesson.day === todayName;
   const isOngoing = isToday && status !== "off" && currentHour >= Number(lesson.startHour) && currentHour < endHour;
@@ -246,6 +263,8 @@ export function renderTimetable() {
   }
 
   const filtered = state.lessons.filter(l => {
+    const rawStatus = l.status || (l.isMakeup ? "makeup" : "normal");
+    if (rawStatus === "makeup" && isLessonStatusExpired(l)) return false;
     if (roomFilter !== "ALL" && l.room !== roomFilter) return false;
     if (teacherFilter !== "ALL" && l.teacherName !== teacherFilter) return false;
     if (subjectFilter !== "ALL" && (l.subject || "") !== subjectFilter) return false;
@@ -305,6 +324,7 @@ export function renderTimetable() {
         const card = document.createElement("div");
         const theme = getRoomTheme(lesson.room);
         const { endHour, badgesHtml, cardStateClass, textStateClass } = getLessonStatusMeta(lesson);
+        const displayNote = ((lesson.status === "off") && isLessonStatusExpired(lesson)) ? "" : (lesson.note || "");
 
         card.className = `p-2.5 rounded-xl border text-left transition ${theme.card} ${cardStateClass} ${state.currentUser ? "cursor-pointer shadow-2xs" : ""}`;
         if (state.currentUser) {
@@ -322,7 +342,7 @@ export function renderTimetable() {
           ${badgesHtml ? `<div class="flex flex-wrap gap-1 mb-1.5">${badgesHtml}</div>` : ""}
           <div class="font-bold text-sm leading-snug ${textStateClass}">${escapeHtml(lesson.teacherName)}</div>
           ${lesson.subject ? `<div class="text-xs opacity-85 truncate mt-0.5 ${textStateClass}">${escapeHtml(lesson.subject)}</div>` : ""}
-          ${lesson.note ? `<div class="mt-1.5 inline-block text-xs font-medium px-2 py-0.5 rounded-md bg-white/85 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(lesson.note)}</div>` : ""}
+          ${displayNote ? `<div class="mt-1.5 inline-block text-xs font-medium px-2 py-0.5 rounded-md bg-white/85 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(displayNote)}</div>` : ""}
         `;
         stack.appendChild(card);
       });
@@ -387,6 +407,7 @@ function renderMobileView(filtered) {
   dayLessons.forEach(lesson => {
     const theme = getRoomTheme(lesson.room);
     const { endHour, badgesHtml, cardStateClass, textStateClass } = getLessonStatusMeta(lesson);
+    const displayNote = ((lesson.status === "off") && isLessonStatusExpired(lesson)) ? "" : (lesson.note || "");
 
     const item = document.createElement("div");
     item.className = `p-4 rounded-2xl border ${theme.card} ${cardStateClass} flex items-start justify-between gap-3 ${state.currentUser ? "cursor-pointer active:scale-[0.99]" : ""}`;
@@ -402,7 +423,7 @@ function renderMobileView(filtered) {
         </div>
         <div class="font-bold text-base text-slate-900 truncate ${textStateClass}">${escapeHtml(lesson.teacherName)}</div>
         ${lesson.subject ? `<div class="text-sm text-slate-600 mt-0.5 truncate ${textStateClass}">${escapeHtml(lesson.subject)}</div>` : ""}
-        ${lesson.note ? `<div class="mt-2 inline-block text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(lesson.note)}</div>` : ""}
+        ${displayNote ? `<div class="mt-2 inline-block text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 text-slate-800 border border-black/10 max-w-full truncate">📝 ${escapeHtml(displayNote)}</div>` : ""}
       </div>
       ${state.currentUser ? `
         <span class="p-2 rounded-xl bg-white/80 text-slate-700 shrink-0" title="Chỉnh sửa">

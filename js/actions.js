@@ -11,6 +11,7 @@ import { auth, db, lessonsRef, roomsRef, teachersRef, subjectsRef, logsRef } fro
 import {
   state,
   DEFAULT_ROOMS,
+  DAYS,
   DAY_LABELS,
   TODAY_NAME,
   formatHour,
@@ -22,7 +23,9 @@ import {
   renderManageLists,
   updateHistoryBadge,
   renderHistoryList,
-  syncInternetClock
+  syncInternetClock,
+  getVietnamNowInfo,
+  isLessonStatusExpired
 } from "./ui.js";
 
 initHourOptions();
@@ -81,6 +84,48 @@ window.addEventListener("online", () => {
 loadOfflineSnapshot();
 syncOfflineStatus();
 
+function getTargetDateForDay(lessonDay) {
+  const { dayName, dateStr } = getVietnamNowInfo();
+  const todayIdx = DAYS.indexOf(dayName);
+  const targetIdx = DAYS.indexOf(lessonDay);
+  if (todayIdx === -1 || targetIdx === -1) return dateStr;
+
+  const diffDays = (targetIdx - todayIdx + 7) % 7;
+  const base = new Date(`${dateStr}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + diffDays);
+  return base.toISOString().slice(0, 10);
+}
+
+let isCleaningExpired = false;
+
+async function cleanupExpiredLessons() {
+  if (isCleaningExpired || !state.currentUser || !navigator.onLine || state.lessons.length === 0) return;
+
+  const expired = state.lessons.filter((lesson) => isLessonStatusExpired(lesson));
+  if (expired.length === 0) return;
+
+  isCleaningExpired = true;
+  try {
+    await Promise.all(
+      expired.map((lesson) => {
+        const status = lesson.status || (lesson.isMakeup ? "makeup" : "normal");
+        if (status === "makeup") {
+          return deleteDoc(doc(db, "lessons", lesson.id));
+        }
+        return updateDoc(doc(db, "lessons", lesson.id), {
+          status: "normal",
+          isMakeup: false,
+          targetDate: "",
+          note: ""
+        });
+      })
+    );
+  } catch (_) {
+  } finally {
+    isCleaningExpired = false;
+  }
+}
+
 
 // Theo dõi đăng nhập
 onAuthStateChanged(auth, (user) => {
@@ -114,6 +159,7 @@ onAuthStateChanged(auth, (user) => {
   }
   renderTimetable();
   renderHistoryList();
+  cleanupExpiredLessons();
 });
 
 
@@ -151,6 +197,7 @@ onSnapshot(lessonsRef, (snap) => {
   state.lessons = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderTimetable();
   saveOfflineSnapshot();
+  cleanupExpiredLessons();
 
   const status = document.getElementById("syncStatus");
   if (status) {
@@ -316,9 +363,11 @@ window.restoreFromLog = async function (logId) {
   const endHour = startHour + Number(snap.duration || 1.5);
   const existingLesson = log.lessonId ? state.lessons.find(l => l.id === log.lessonId) : null;
 
-  // Bỏ qua chính lịch đang sửa (existingLesson.id) khi kiểm tra trùng phòng
+  // Bỏ qua chính lịch đang sửa (existingLesson.id) và bỏ qua lịch học bù đã hết hạn sau 23:00
   const conflict = state.lessons.find(l => {
     if (existingLesson && l.id === existingLesson.id) return false;
+    const lStatus = l.status || (l.isMakeup ? "makeup" : "normal");
+    if (lStatus === "makeup" && isLessonStatusExpired(l)) return false;
     if (l.day !== snap.day || l.room !== snap.room) return false;
     const lStart = Number(l.startHour);
     const lEnd = lStart + Number(l.duration || 1);
@@ -350,6 +399,7 @@ window.restoreFromLog = async function (logId) {
     duration: Number(snap.duration || 1.5),
     status: restoredStatus,
     isMakeup: restoredStatus === "makeup",
+    targetDate: (restoredStatus === "makeup" || restoredStatus === "off") ? getTargetDateForDay(snap.day) : "",
     note: snap.note || "",
     updatedBy: state.currentUser.email
   };
@@ -598,11 +648,15 @@ window.logoutTeacher = async function () {
 window.selectLessonStatus = function (status) {
   const input = document.getElementById("lessonStatus");
   if (input) input.value = status;
+  const isNewBooking = !document.getElementById("lessonId")?.value;
   document.querySelectorAll(".status-pill-btn").forEach(btn => {
     const active = btn.dataset.status === status;
-    btn.className = active
-      ? "status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition bg-slate-900 text-white border-slate-900"
-      : "status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100";
+    const hideOff = isNewBooking && btn.dataset.status === "off";
+    btn.className = `${hideOff ? "hidden " : ""}status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition ${
+      active
+        ? "bg-slate-900 text-white border-slate-900"
+        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+    }`;
   });
 };
 
@@ -610,9 +664,21 @@ window.selectLessonStatus = function (status) {
 window.openLessonModal = function (lesson = null, defaultDay = TODAY_NAME, defaultHour = 9) {
 if (!state.currentUser || !navigator.onLine) return;
   if (!state.currentUser) return;
+  
+  
 
   const initialStatus = lesson?.status || (lesson?.isMakeup ? "makeup" : "normal");
-  selectLessonStatus(initialStatus);
+selectLessonStatus(initialStatus);
+
+const offBtn = document.getElementById("statusOffBtn");
+if (offBtn) {
+  offBtn.classList.toggle("hidden", !lesson);
+  const grid = offBtn.parentElement;
+  if (grid) {
+    grid.classList.toggle("grid-cols-2", !lesson);
+    grid.classList.toggle("grid-cols-3", Boolean(lesson));
+  }
+}
 
   document.getElementById("formError").classList.add("hidden");
   const deleteBtn = document.getElementById("deleteLessonBtn");
@@ -692,6 +758,8 @@ window.saveLesson = async function (e) {
 
   const conflict = state.lessons.find(l => {
     if (l.id === id) return false;
+    const lStatus = l.status || (l.isMakeup ? "makeup" : "normal");
+    if (lStatus === "makeup" && isLessonStatusExpired(l)) return false;
     if (l.day !== day || l.room !== room) return false;
     const lStart = Number(l.startHour);
     const lEnd = lStart + Number(l.duration || 1);
@@ -718,6 +786,7 @@ window.saveLesson = async function (e) {
       duration,
       status,
       isMakeup: status === "makeup",
+      targetDate: (status === "makeup" || status === "off") ? getTargetDateForDay(day) : "",
       note,
       updatedBy: state.currentUser.email
     };
@@ -756,7 +825,48 @@ window.deleteLesson = async function () {
   closeLessonModal();
 };
 
-syncInternetClock().then(() => renderTimetable());
+syncInternetClock().then(() => {
+  renderTimetable();
+  cleanupExpiredLessons();
+});
 setInterval(() => {
   renderTimetable();
+  cleanupExpiredLessons();
 }, 60 * 1000);
+
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+
+  const appDialog = document.getElementById("appDialogModal");
+  if (appDialog && !appDialog.classList.contains("hidden")) {
+    const cancelBtn = document.getElementById("appDialogCancelBtn");
+    const okBtn = document.getElementById("appDialogOkBtn");
+    if (cancelBtn && !cancelBtn.classList.contains("hidden")) cancelBtn.click();
+    else if (okBtn) okBtn.click();
+    return;
+  }
+
+  const confirmDel = document.getElementById("confirmDeleteModal");
+  if (confirmDel && !confirmDel.classList.contains("hidden")) {
+    window.closeConfirmDeleteModal?.();
+    return;
+  }
+
+  const modalClosers = [
+    ["renameModal", () => window.closeRenameModal?.()],
+    ["lessonModal", () => window.closeLessonModal?.()],
+    ["manageModal", () => window.closeManageModal?.()],
+    ["historyModal", () => window.closeHistoryModal?.()],
+    ["loginModal", () => window.closeLoginModal?.()]
+  ];
+
+  for (const [id, closeFn] of modalClosers) {
+    const el = document.getElementById(id);
+    if (el && !el.classList.contains("hidden")) {
+      closeFn();
+      break;
+    }
+  }
+});
+
