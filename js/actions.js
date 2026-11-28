@@ -206,13 +206,12 @@ function syncAuthUI(user) {
   const email = user?.email || "";
 
   // Desktop Header
-  const historyBtn = document.getElementById("historyBtn");
-  if (historyBtn) {
-    historyBtn.classList.toggle("hidden", !isLoggedIn);
-    historyBtn.classList.toggle("inline-flex", isLoggedIn);
-  }
-  document.getElementById("addLessonBtnDesktop")?.classList.toggle("hidden", !isLoggedIn);
-  document.getElementById("manageListsBtnDesktop")?.classList.toggle("hidden", !isLoggedIn);
+  ["historyBtn", "addLessonBtnDesktop", "manageListsBtnDesktop"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle("hidden", !isLoggedIn);
+    el.classList.toggle("inline-flex", isLoggedIn);
+  });
   const emailDesktop = document.getElementById("userEmailDesktop");
   if (emailDesktop) {
     emailDesktop.textContent = email;
@@ -236,11 +235,6 @@ function syncAuthUI(user) {
   const drawerEmail = document.getElementById("drawerUserEmail");
   if (drawerEmail) drawerEmail.textContent = email;
 
-  const drawerAdd = document.getElementById("drawerAddLessonBtn");
-  if (drawerAdd) {
-    drawerAdd.classList.toggle("hidden", !isLoggedIn);
-    drawerAdd.classList.toggle("flex", isLoggedIn);
-  }
   const drawerManage = document.getElementById("drawerManageListsBtn");
   if (drawerManage) {
     drawerManage.classList.toggle("hidden", !isLoggedIn);
@@ -342,7 +336,7 @@ function showAppNotice(message, title = "Thông báo") {
     document.getElementById("appDialogCancelBtn").classList.add("hidden");
     const okBtn = document.getElementById("appDialogOkBtn");
     okBtn.textContent = "Đã hiểu";
-    okBtn.className = "px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl";
+    okBtn.className = "h-11 px-5 min-w-[112px] text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl inline-flex items-center justify-center transition";
     const modal = document.getElementById("appDialogModal");
     modal.classList.remove("hidden");
     modal.classList.add("flex");
@@ -358,8 +352,8 @@ function showAppConfirm(message, title = "Xác nhận", okText = "Đồng ý", d
     const okBtn = document.getElementById("appDialogOkBtn");
     okBtn.textContent = okText;
     okBtn.className = danger
-      ? "px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl"
-      : "px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl";
+      ? "h-11 px-5 min-w-[112px] text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl inline-flex items-center justify-center transition"
+      : "h-11 px-5 min-w-[112px] text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl inline-flex items-center justify-center transition";
     const modal = document.getElementById("appDialogModal");
     modal.classList.remove("hidden");
     modal.classList.add("flex");
@@ -874,7 +868,7 @@ window.deleteManageItem = function (colName, id) {
   let secondsLeft = 3;
   yesBtn.disabled = true;
   yesBtn.textContent = `Có (${secondsLeft}s)`;
-  yesBtn.className = "px-4 py-2 text-sm font-bold rounded-xl bg-slate-200 text-slate-400 cursor-not-allowed transition min-w-[96px]";
+  yesBtn.className = "h-11 px-5 min-w-[112px] text-sm font-semibold rounded-xl bg-slate-200 text-slate-400 cursor-not-allowed inline-flex items-center justify-center transition";
   yesBtn.onclick = null;
 
   if (deleteCountdownTimer) clearInterval(deleteCountdownTimer);
@@ -891,7 +885,7 @@ window.deleteManageItem = function (colName, id) {
       deleteCountdownTimer = null;
       yesBtn.disabled = false;
       yesBtn.textContent = "Có, xóa";
-      yesBtn.className = "px-4 py-2 text-sm font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white cursor-pointer transition min-w-[96px]";
+      yesBtn.className = "h-11 px-5 min-w-[112px] text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white cursor-pointer inline-flex items-center justify-center transition";
       yesBtn.onclick = async () => {
         window.closeConfirmDeleteModal();
         await deleteDoc(doc(db, colName, id));
