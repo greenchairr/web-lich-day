@@ -1,4 +1,4 @@
-const CACHE_NAME = "tkb-center-v1.25
+const CACHE_NAME = "tkb-center-v1.15
   ";
 const ASSETS = [
   "./",
