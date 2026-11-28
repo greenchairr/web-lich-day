@@ -1,4 +1,4 @@
-const CACHE_NAME = "tkb-center-v1.3";
+const CACHE_NAME = "tkb-center-v1.7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -62,4 +62,3 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request, { ignoreSearch: true }))
   );
 });
-

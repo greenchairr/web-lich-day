@@ -1,7 +1,7 @@
 {
-  "name": "Lịch Phòng Học Trung Tâm",
-  "short_name": "Lịch Phòng Học",
-  "description": "Thời khóa biểu phòng học & giáo viên theo tuần",
+  "name": "Thời Khóa Biểu Trung Tâm Anh Việt",
+  "short_name": "TKB Anh Việt",
+  "description": "Thời khóa biểu phòng học & giáo viên Trung Tâm Anh Việt",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#F8FAFC",
