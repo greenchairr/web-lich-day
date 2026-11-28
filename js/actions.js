@@ -25,15 +25,71 @@ import {
   renderHistoryList,
   syncInternetClock,
   getVietnamNowInfo,
-  isLessonStatusExpired
+  isLessonStatusExpired,
+  getEffectiveStatus,
+  isOffSlotClaimed
 } from "./ui.js";
+
+// ==========================================
+// 1. THÔNG BÁO NỔI (TOAST) & KIỂM TRA TRÙNG PHÒNG
+// ==========================================
+function showToast(message, type = "info") {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+
+  const colors = {
+    success: "bg-emerald-600 text-white",
+    error: "bg-red-600 text-white",
+    warning: "bg-amber-500 text-white",
+    info: "bg-slate-900 text-white"
+  };
+
+  const toast = document.createElement("div");
+  toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-200 opacity-0 translate-y-2 ${colors[type] || colors.info}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.remove("opacity-0", "translate-y-2");
+  });
+
+  setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-y-2");
+    setTimeout(() => toast.remove(), 220);
+  }, 3200);
+}
+
+// Kiểm tra xung đột phòng (bỏ qua lịch Báo nghỉ đang có hiệu lực và lịch Tạm thời đã hết hạn)
+export function findRoomConflict(candidate, allLessons, ignoreId = null) {
+  const candidateStatus = getEffectiveStatus(candidate);
+  if (candidateStatus === "off" || candidateStatus === "expired_makeup") {
+    return null;
+  }
+
+  const candStart = Number(candidate.startHour);
+  const candEnd = candStart + Number(candidate.duration || 1.5);
+
+  return allLessons.find((l) => {
+    if (ignoreId && l.id === ignoreId) return false;
+    if (l.room !== candidate.room || l.day !== candidate.day) return false;
+
+    const existingStatus = getEffectiveStatus(l);
+    if (existingStatus === "off" || existingStatus === "expired_makeup") return false;
+
+    const lStart = Number(l.startHour);
+    const lEnd = lStart + Number(l.duration || 1.5);
+    return candStart < lEnd && candEnd > lStart;
+  }) || null;
+}
 
 initHourOptions();
 
+// ==========================================
+// 2. CACHE OFFLINE & TRẠNG THÁI MẠNG
+// ==========================================
 const OFFLINE_CACHE_KEY = "tkb_offline_snapshot_v1";
 
 function saveOfflineSnapshot() {
-  // Chỉ lưu khi thực sự có dữ liệu và đang có mạng (tránh ghi đè mảng rỗng khi offline)
   if (!navigator.onLine || state.lessons.length === 0) return;
   try {
     localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({
@@ -67,23 +123,39 @@ function loadOfflineSnapshot() {
   } catch (_) {}
 }
 
+let hasShownInitialSyncToast = false;
+let suppressNextSyncToast = false;
+
+function setNetworkDot(isSynced) {
+  const dot = document.getElementById("networkStatusDot");
+  if (!dot) return;
+  if (isSynced) {
+    dot.title = "Đã cập nhật thời khóa biểu mới nhất";
+    dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0";
+  } else {
+    dot.title = "Ngoại tuyến (Đang xem bản lưu)";
+    dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 shrink-0";
+  }
+}
+
 function syncOfflineStatus() {
-  const status = document.getElementById("syncStatus");
-  if (!status) return;
   if (!navigator.onLine) {
-    status.title = "Ngoại tuyến (Đang xem bản lưu)";
-    status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>`;
+    setNetworkDot(false);
   }
 }
 
 window.addEventListener("offline", syncOfflineStatus);
 window.addEventListener("online", () => {
+  setNetworkDot(true);
   syncInternetClock().then(() => renderTimetable());
 });
 
 loadOfflineSnapshot();
 syncOfflineStatus();
 
+// ==========================================
+// 3. TỰ ĐỘNG DỌN LỊCH TẠM THỜI / BÁO NGHỈ SAU 23:00
+// ==========================================
 function getTargetDateForDay(lessonDay) {
   const { dayName, dateStr } = getVietnamNowInfo();
   const todayIdx = DAYS.indexOf(dayName);
@@ -126,44 +198,72 @@ async function cleanupExpiredLessons() {
   }
 }
 
+// ==========================================
+// 4. ĐỒNG BỘ GIAO DIỆN ĐĂNG NHẬP (DESKTOP + DRAWER + FAB)
+// ==========================================
+function syncAuthUI(user) {
+  const isLoggedIn = Boolean(user);
+  const email = user?.email || "";
 
-// Theo dõi đăng nhập
+  // Desktop Header
+  const historyBtn = document.getElementById("historyBtn");
+  if (historyBtn) {
+    historyBtn.classList.toggle("hidden", !isLoggedIn);
+    historyBtn.classList.toggle("inline-flex", isLoggedIn);
+  }
+  document.getElementById("addLessonBtnDesktop")?.classList.toggle("hidden", !isLoggedIn);
+  document.getElementById("manageListsBtnDesktop")?.classList.toggle("hidden", !isLoggedIn);
+  const emailDesktop = document.getElementById("userEmailDesktop");
+  if (emailDesktop) {
+    emailDesktop.textContent = email;
+    emailDesktop.classList.toggle("hidden", !isLoggedIn);
+  }
+  const authBtnDesktop = document.getElementById("authBtnDesktop");
+  if (authBtnDesktop) {
+    authBtnDesktop.textContent = isLoggedIn ? "Đăng xuất" : "Đăng nhập";
+  }
+
+  // Mobile FAB (+)
+  const fab = document.getElementById("mobileFabAddBtn");
+  if (fab) {
+    fab.classList.toggle("hidden", !isLoggedIn);
+    fab.classList.toggle("flex", isLoggedIn);
+  }
+
+  // Right Drawer
+  document.getElementById("drawerLoggedOutBox")?.classList.toggle("hidden", isLoggedIn);
+  document.getElementById("drawerLoggedInBox")?.classList.toggle("hidden", !isLoggedIn);
+  const drawerEmail = document.getElementById("drawerUserEmail");
+  if (drawerEmail) drawerEmail.textContent = email;
+
+  const drawerAdd = document.getElementById("drawerAddLessonBtn");
+  if (drawerAdd) {
+    drawerAdd.classList.toggle("hidden", !isLoggedIn);
+    drawerAdd.classList.toggle("flex", isLoggedIn);
+  }
+  const drawerManage = document.getElementById("drawerManageListsBtn");
+  if (drawerManage) {
+    drawerManage.classList.toggle("hidden", !isLoggedIn);
+    drawerManage.classList.toggle("flex", isLoggedIn);
+  }
+  const drawerHistory = document.getElementById("drawerHistoryBtn");
+  if (drawerHistory) {
+    drawerHistory.classList.toggle("hidden", !isLoggedIn);
+    drawerHistory.classList.toggle("flex", isLoggedIn);
+  }
+}
+
 onAuthStateChanged(auth, (user) => {
   state.currentUser = user;
-  const loginBtn = document.getElementById("loginBtn");
-  const addLessonBtn = document.getElementById("addLessonBtn");
-  const manageBtn = document.getElementById("manageBtn");
-  const userBadge = document.getElementById("userBadge");
-  const userEmailLabel = document.getElementById("userEmailLabel");
-  const headerTitleWrap = document.getElementById("headerTitleWrap");
-
-  if (user) {
-    if (headerTitleWrap) headerTitleWrap.classList.add("hidden", "sm:block");
-    loginBtn.classList.add("hidden");
-    addLessonBtn.classList.remove("hidden");
-    addLessonBtn.classList.add("inline-flex");
-    manageBtn.classList.remove("hidden");
-    manageBtn.classList.add("inline-flex");
-    userBadge.classList.remove("hidden");
-    userBadge.classList.add("inline-flex");
-    userEmailLabel.textContent = user.email;
-  } else {
-    if (headerTitleWrap) headerTitleWrap.classList.remove("hidden", "sm:block");
-    loginBtn.classList.remove("hidden");
-    addLessonBtn.classList.add("hidden");
-    addLessonBtn.classList.remove("inline-flex");
-    manageBtn.classList.add("hidden");
-    manageBtn.classList.remove("inline-flex");
-    userBadge.classList.add("hidden");
-    userBadge.classList.remove("inline-flex");
-  }
+  syncAuthUI(user);
   renderTimetable();
   renderHistoryList();
   cleanupExpiredLessons();
 });
 
-
-// Đồng bộ dữ liệu thời gian thực
+// ==========================================
+// 5. ĐỒNG BỘ DỮ LIỆU FIRESTORE THỜI GIAN THỰC
+// ==========================================
 onSnapshot(roomsRef, (snap) => {
   const customRooms = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
   state.roomsList = customRooms.length > 0 ? customRooms : [...DEFAULT_ROOMS];
@@ -188,35 +288,37 @@ onSnapshot(subjectsRef, (snap) => {
 });
 
 onSnapshot(lessonsRef, (snap) => {
-  // Nếu Firestore trả về rỗng từ cache cục bộ trong khi đã có bản lưu offline, giữ nguyên lịch đã nạp
   if (snap.empty && state.lessons.length > 0 && (!navigator.onLine || snap.metadata.fromCache)) {
     syncOfflineStatus();
     return;
   }
 
   state.lessons = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  syncRoomDropdowns();
+  syncTeacherDropdowns();
+  syncSubjectDropdowns();
   renderTimetable();
   saveOfflineSnapshot();
   cleanupExpiredLessons();
 
-  const status = document.getElementById("syncStatus");
-  if (status) {
-    if (navigator.onLine && !snap.metadata.fromCache) {
-      status.title = "Đã đồng bộ";
-      status.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>`;
-    } else {
-      syncOfflineStatus();
+  if (navigator.onLine && !snap.metadata.fromCache) {
+    setNetworkDot(true);
+    if (!hasShownInitialSyncToast) {
+      hasShownInitialSyncToast = true;
+      showToast("Đã cập nhật thời khóa biểu mới nhất", "success");
+    } else if (!suppressNextSyncToast) {
+      showToast("Đã cập nhật thời khóa biểu mới nhất", "info");
     }
+    suppressNextSyncToast = false;
+  } else {
+    syncOfflineStatus();
   }
 }, () => {
   syncOfflineStatus();
 });
 
-
-// Đồng bộ 50 lịch sử hoạt động gần nhất
 const recentLogsQuery = query(logsRef, orderBy("createdAt", "desc"), limit(50));
 onSnapshot(recentLogsQuery, (snap) => {
-  // Giữ nguyên lịch sử thay đổi đã nạp từ localStorage nếu Firestore trả về rỗng lúc mất mạng
   if (snap.empty && state.logsList.length > 0 && (!navigator.onLine || snap.metadata.fromCache)) {
     return;
   }
@@ -227,7 +329,9 @@ onSnapshot(recentLogsQuery, (snap) => {
   saveOfflineSnapshot();
 });
 
-
+// ==========================================
+// 6. HỘP THOẠI THÔNG BÁO / XÁC NHẬN CHUNG
+// ==========================================
 let appDialogResolver = null;
 
 function showAppNotice(message, title = "Thông báo") {
@@ -295,7 +399,131 @@ async function writeActivityLog(action, lessonData, detail = "", lessonId = "") 
   } catch (_) {}
 }
 
-// Gắn các hàm ra window để HTML gọi trực tiếp
+// ==========================================
+// 7. NGĂN KÉO PHẢI, HƯỚNG DẪN & CHỌN NHANH CA BÁO NGHỈ
+// ==========================================
+window.openRightDrawer = function () {
+  document.getElementById("rightDrawerBackdrop")?.classList.remove("hidden");
+  const drawer = document.getElementById("rightDrawer");
+  if (drawer) {
+    drawer.classList.remove("invisible", "pointer-events-none", "translate-x-full");
+    drawer.classList.add("shadow-2xl");
+  }
+};
+
+window.closeRightDrawer = function () {
+  document.getElementById("rightDrawerBackdrop")?.classList.add("hidden");
+  const drawer = document.getElementById("rightDrawer");
+  if (drawer) {
+    drawer.classList.add("translate-x-full", "pointer-events-none");
+    drawer.classList.remove("shadow-2xl");
+    setTimeout(() => {
+      if (drawer.classList.contains("translate-x-full")) {
+        drawer.classList.add("invisible");
+      }
+    }, 200);
+  }
+};
+
+window.switchHelpTab = function (tab) {
+  const isTeacher = tab === "teacher";
+  const guestBtn = document.getElementById("helpTabBtn-guest");
+  const teacherBtn = document.getElementById("helpTabBtn-teacher");
+  const guestPanel = document.getElementById("helpTabPanel-guest");
+  const teacherPanel = document.getElementById("helpTabPanel-teacher");
+
+  if (guestPanel) guestPanel.classList.toggle("hidden", isTeacher);
+  if (teacherPanel) teacherPanel.classList.toggle("hidden", !isTeacher);
+
+  const activeCls = "py-2 px-3 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-xs";
+  const inactiveCls = "py-2 px-3 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-800";
+
+  if (guestBtn) {
+    guestBtn.className = isTeacher ? inactiveCls : activeCls;
+    guestBtn.setAttribute("aria-selected", String(!isTeacher));
+  }
+  if (teacherBtn) {
+    teacherBtn.className = isTeacher ? activeCls : inactiveCls;
+    teacherBtn.setAttribute("aria-selected", String(isTeacher));
+  }
+};
+
+window.openHelpModal = function () {
+  const isLoggedIn = Boolean(state.currentUser);
+  const tabBar = document.getElementById("helpTabBar");
+  if (tabBar) {
+    tabBar.classList.toggle("hidden", !isLoggedIn);
+  }
+  window.switchHelpTab(isLoggedIn ? "teacher" : "guest");
+  const modal = document.getElementById("helpModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+};
+
+window.closeHelpModal = function () {
+  const modal = document.getElementById("helpModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+};
+
+let pendingOffLesson = null;
+
+window.handleLessonCardClick = function (lesson) {
+  if (!state.currentUser) return;
+  if (!navigator.onLine) {
+    showToast("Đang ngoại tuyến — chỉ có thể xem lịch.", "warning");
+    return;
+  }
+
+  const effStatus = getEffectiveStatus(lesson);
+  const claimed = isOffSlotClaimed(lesson, state.lessons);
+
+  // Khi bấm vào thẻ Báo nghỉ còn trống phòng -> luôn hiện hộp thoại chọn nhanh
+  if (effStatus === "off" && !claimed) {
+    pendingOffLesson = lesson;
+    const endHour = Number(lesson.startHour) + Number(lesson.duration || 1.5);
+    const desc = document.getElementById("offSlotChoiceDesc");
+    if (desc) {
+      desc.textContent = `${lesson.room} (${DAY_LABELS[lesson.day]}, ${formatHour(lesson.startHour)}–${formatHour(endHour)}) của ${lesson.teacherName} đang báo nghỉ. Bạn muốn đặt lớp tạm thời vào giờ này hay chỉnh sửa lịch gốc?`;
+    }
+    const modal = document.getElementById("offSlotChoiceModal");
+    modal?.classList.remove("hidden");
+    modal?.classList.add("flex");
+    return;
+  }
+
+  window.openLessonModal(lesson);
+};
+
+window.closeOffSlotChoiceModal = function () {
+  pendingOffLesson = null;
+  const modal = document.getElementById("offSlotChoiceModal");
+  modal?.classList.add("hidden");
+  modal?.classList.remove("flex");
+};
+
+window.bookFreedOffSlot = function () {
+  const target = pendingOffLesson;
+  window.closeOffSlotChoiceModal();
+  if (!target) return;
+  window.openLessonModal(null, target.day, Number(target.startHour), {
+    room: target.room,
+    duration: Number(target.duration || 1.5),
+    status: "makeup"
+  });
+};
+
+window.editOriginalOffSlot = function () {
+  const target = pendingOffLesson;
+  window.closeOffSlotChoiceModal();
+  if (target) window.openLessonModal(target);
+};
+
+// ==========================================
+// 8. CÁC THAO TÁC BỘ LỌC, ĐĂNG NHẬP, LỊCH SỬ
+// ==========================================
 window.renderTimetable = renderTimetable;
 
 window.jumpToToday = function () {
@@ -318,6 +546,28 @@ window.resetFilters = function () {
   renderTimetable();
 };
 
+window.handleAuthButtonClick = async function () {
+  if (state.currentUser) {
+    const ok = await showAppConfirm("Bạn có chắc muốn đăng xuất khỏi tài khoản hiện tại?", "Đăng xuất", "Đăng xuất");
+    if (!ok) return;
+    await window.logoutTeacher();
+  } else {
+    window.openLoginModal();
+  }
+};
+
+window.openLoginModal = function () {
+  document.getElementById("loginError").classList.add("hidden");
+  document.getElementById("loginModal").classList.remove("hidden");
+  document.getElementById("loginModal").classList.add("flex");
+  setTimeout(() => document.getElementById("loginEmail")?.focus(), 50);
+};
+
+window.closeLoginModal = function () {
+  document.getElementById("loginModal").classList.add("hidden");
+  document.getElementById("loginModal").classList.remove("flex");
+};
+
 window.submitLogin = async function (e) {
   e.preventDefault();
   const email = document.getElementById("loginEmail").value.trim();
@@ -332,14 +582,20 @@ window.submitLogin = async function (e) {
       rememberMe ? browserLocalPersistence : browserSessionPersistence
     );
     await signInWithEmailAndPassword(auth, email, password);
-    closeLoginModal();
+    document.getElementById("loginPassword").value = "";
+    window.closeLoginModal();
+    showToast("Đăng nhập thành công!", "success");
   } catch (err) {
     errEl.textContent = "Email hoặc mật khẩu không đúng.";
     errEl.classList.remove("hidden");
   }
 };
 
-// Lịch sử hoạt động & Khôi phục
+window.logoutTeacher = async function () {
+  await signOut(auth);
+  showToast("Đã đăng xuất.", "info");
+};
+
 window.openHistoryModal = function () {
   localStorage.setItem("tkb_last_seen_log", String(Date.now()));
   updateHistoryBadge();
@@ -355,29 +611,35 @@ window.closeHistoryModal = function () {
 
 window.restoreFromLog = async function (logId) {
   if (!state.currentUser) return;
+  if (!navigator.onLine) {
+    showToast("Cần kết nối mạng để khôi phục lịch.", "warning");
+    return;
+  }
   const log = state.logsList.find(item => item.id === logId);
   if (!log || !log.lesson) return;
 
   const snap = log.lesson;
   const startHour = Number(snap.startHour);
-  const endHour = startHour + Number(snap.duration || 1.5);
+  const duration = Number(snap.duration || 1.5);
   const existingLesson = log.lessonId ? state.lessons.find(l => l.id === log.lessonId) : null;
+  const restoredStatus = snap.status || (snap.isMakeup ? "makeup" : "normal");
 
-  // Bỏ qua chính lịch đang sửa (existingLesson.id) và bỏ qua lịch học bù đã hết hạn sau 23:00
-  const conflict = state.lessons.find(l => {
-    if (existingLesson && l.id === existingLesson.id) return false;
-    const lStatus = l.status || (l.isMakeup ? "makeup" : "normal");
-    if (lStatus === "makeup" && isLessonStatusExpired(l)) return false;
-    if (l.day !== snap.day || l.room !== snap.room) return false;
-    const lStart = Number(l.startHour);
-    const lEnd = lStart + Number(l.duration || 1);
-    return startHour < lEnd && endHour > lStart;
-  });
+  const candidate = {
+    room: snap.room,
+    day: snap.day,
+    startHour,
+    duration,
+    status: restoredStatus,
+    targetDate: (restoredStatus === "makeup" || restoredStatus === "off") ? getTargetDateForDay(snap.day) : ""
+  };
 
+  const conflict = findRoomConflict(candidate, state.lessons, existingLesson?.id || null);
   if (conflict) {
+    const conflictType = getEffectiveStatus(conflict) === "makeup" ? "lịch Tạm thời" : "lịch Cố định";
+    const conflictEnd = Number(conflict.startHour) + Number(conflict.duration || 1.5);
     await showAppNotice(
-      `Không thể khôi phục vì ${snap.room} vào ${DAY_LABELS[snap.day]} (${formatHour(startHour)}–${formatHour(endHour)}) hiện đã có lịch của ${conflict.teacherName}.`,
-      "Trùng lịch phòng"
+      `Không thể khôi phục vì ${conflict.room} hiện đã có ${conflictType} của ${conflict.teacherName} (${formatHour(conflict.startHour)}–${formatHour(conflictEnd)}).`,
+      "Trùng phòng học"
     );
     return;
   }
@@ -389,21 +651,21 @@ window.restoreFromLog = async function (logId) {
   );
   if (!ok) return;
 
-  const restoredStatus = snap.status || (snap.isMakeup ? "makeup" : "normal");
   const payload = {
     teacherName: snap.teacherName,
     room: snap.room,
     subject: snap.subject || "",
     day: snap.day,
     startHour,
-    duration: Number(snap.duration || 1.5),
+    duration,
     status: restoredStatus,
     isMakeup: restoredStatus === "makeup",
-    targetDate: (restoredStatus === "makeup" || restoredStatus === "off") ? getTargetDateForDay(snap.day) : "",
+    targetDate: candidate.targetDate,
     note: snap.note || "",
     updatedBy: state.currentUser.email
   };
 
+  suppressNextSyncToast = true;
   if (existingLesson) {
     await updateDoc(doc(db, "lessons", existingLesson.id), payload);
     await writeActivityLog("restore", payload, "Hoàn tác chỉnh sửa", existingLesson.id);
@@ -411,13 +673,19 @@ window.restoreFromLog = async function (logId) {
     const newRef = await addDoc(lessonsRef, payload);
     await writeActivityLog("restore", payload, "Khôi phục từ lịch sử", newRef.id);
   }
-  closeHistoryModal();
+  window.closeHistoryModal();
+  showToast("Đã khôi phục lịch học!", "success");
 };
 
-// Quản lý danh sách
+// ==========================================
+// 9. QUẢN LÝ DANH SÁCH (PHÒNG / GIÁO VIÊN / MÔN)
+// ==========================================
 window.openManageModal = function () {
-if (!state.currentUser || !navigator.onLine) return;
   if (!state.currentUser) return;
+  if (!navigator.onLine) {
+    showToast("Cần kết nối mạng để quản lý danh sách.", "warning");
+    return;
+  }
   document.getElementById("manageModal").classList.remove("hidden");
   document.getElementById("manageModal").classList.add("flex");
 };
@@ -461,6 +729,7 @@ window.addRoomItem = async function (e) {
     }
   }
   input.value = "";
+  showToast(`Đã thêm ${name}.`, "success");
 };
 
 window.addTeacherItem = async function (e) {
@@ -477,6 +746,7 @@ window.addTeacherItem = async function (e) {
   }
   await addDoc(teachersRef, { name });
   input.value = "";
+  showToast(`Đã thêm ${name}.`, "success");
 };
 
 window.addSubjectItem = async function (e) {
@@ -494,6 +764,7 @@ window.addSubjectItem = async function (e) {
 
   await addDoc(subjectsRef, { name });
   input.value = "";
+  showToast(`Đã thêm ${name}.`, "success");
 };
 
 let pendingRename = null;
@@ -539,7 +810,7 @@ window.submitRenameModal = async function (e) {
   const errEl = document.getElementById("renameModalError");
 
   if (!newName || newName === item.name) {
-    closeRenameModal();
+    window.closeRenameModal();
     return;
   }
 
@@ -560,13 +831,13 @@ window.submitRenameModal = async function (e) {
         affectedLessons.map(l => updateDoc(doc(db, "lessons", l.id), { [target.field]: newName }))
       );
     }
-    closeRenameModal();
+    window.closeRenameModal();
+    showToast("Đã cập nhật tên mới.", "success");
   } catch (err) {
     errEl.textContent = "Lỗi cập nhật tên: " + err.message;
     errEl.classList.remove("hidden");
   }
 };
-
 
 let deleteCountdownTimer = null;
 
@@ -622,67 +893,55 @@ window.deleteManageItem = function (colName, id) {
       yesBtn.textContent = "Có, xóa";
       yesBtn.className = "px-4 py-2 text-sm font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white cursor-pointer transition min-w-[96px]";
       yesBtn.onclick = async () => {
-        closeConfirmDeleteModal();
+        window.closeConfirmDeleteModal();
         await deleteDoc(doc(db, colName, id));
+        showToast("Đã xóa khỏi danh sách.", "info");
       };
     }
   }, 1000);
 };
 
-// Đăng nhập / Đăng xuất
-window.openLoginModal = function () {
-  document.getElementById("loginError").classList.add("hidden");
-  document.getElementById("loginModal").classList.remove("hidden");
-  document.getElementById("loginModal").classList.add("flex");
-};
-
-window.closeLoginModal = function () {
-  document.getElementById("loginModal").classList.add("hidden");
-  document.getElementById("loginModal").classList.remove("flex");
-};
-
-window.logoutTeacher = async function () {
-  await signOut(auth);
+// ==========================================
+// 10. ĐẶT / SỬA / XÓA PHÒNG HỌC
+// ==========================================
+const STATUS_HELPER_TEXT = {
+  normal: "Lịch cố định sẽ lặp lại hằng tuần.",
+  makeup: "Lịch tạm thời chỉ áp dụng cho ngày đã chọn và tự động xóa lúc 23:00.",
+  off: "Tạm nhường phòng 1 buổi; sau 23:00 sẽ tự trở về lịch Cố định và xóa ghi chú."
 };
 
 window.selectLessonStatus = function (status) {
   const input = document.getElementById("lessonStatus");
   if (input) input.value = status;
   const isNewBooking = !document.getElementById("lessonId")?.value;
+
   document.querySelectorAll(".status-pill-btn").forEach(btn => {
     const active = btn.dataset.status === status;
     const hideOff = isNewBooking && btn.dataset.status === "off";
-    btn.className = `${hideOff ? "hidden " : ""}status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition ${
+    btn.className = `${hideOff ? "hidden " : "inline-flex "}status-pill-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-bold transition items-center justify-center gap-1.5 ${
       active
         ? "bg-slate-900 text-white border-slate-900"
         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
     }`;
   });
+
+  const helperEl = document.getElementById("statusHelperText");
+  if (helperEl) {
+    helperEl.textContent = STATUS_HELPER_TEXT[status] || STATUS_HELPER_TEXT.normal;
+  }
 };
 
-// Đặt / Sửa phòng học
-window.openLessonModal = function (lesson = null, defaultDay = TODAY_NAME, defaultHour = 9) {
-if (!state.currentUser || !navigator.onLine) return;
+window.openLessonModal = function (lesson = null, defaultDay = TODAY_NAME, defaultHour = 9, prefillOptions = null) {
   if (!state.currentUser) return;
-  
-  
-
-  const initialStatus = lesson?.status || (lesson?.isMakeup ? "makeup" : "normal");
-selectLessonStatus(initialStatus);
-
-const offBtn = document.getElementById("statusOffBtn");
-if (offBtn) {
-  offBtn.classList.toggle("hidden", !lesson);
-  const grid = offBtn.parentElement;
-  if (grid) {
-    grid.classList.toggle("grid-cols-2", !lesson);
-    grid.classList.toggle("grid-cols-3", Boolean(lesson));
+  if (!navigator.onLine) {
+    showToast("Cần kết nối mạng để đặt hoặc sửa lịch.", "warning");
+    return;
   }
-}
 
   document.getElementById("formError").classList.add("hidden");
   const deleteBtn = document.getElementById("deleteLessonBtn");
   const teacherSelect = document.getElementById("teacherSelectInput");
+  const roomSelect = document.getElementById("roomSelectInput");
   const subjectSelect = document.getElementById("subjectSelectInput");
 
   if (lesson) {
@@ -697,7 +956,7 @@ if (offBtn) {
     }
     teacherSelect.value = lesson.teacherName || "";
 
-    document.getElementById("roomSelectInput").value = lesson.room || state.roomsList[0]?.name || "";
+    roomSelect.value = lesson.room || state.roomsList[0]?.name || "";
 
     if (lesson.subject && ![...subjectSelect.options].some(o => o.value === lesson.subject)) {
       const opt = document.createElement("option");
@@ -716,13 +975,25 @@ if (offBtn) {
     document.getElementById("lessonModalTitle").textContent = "Đặt phòng học";
     document.getElementById("lessonId").value = "";
     if (teacherSelect.options.length > 0) teacherSelect.selectedIndex = 0;
-    document.getElementById("roomSelectInput").value = state.roomsList[0]?.name || "";
+    roomSelect.value = prefillOptions?.room || state.roomsList[0]?.name || "";
     subjectSelect.value = "";
-    document.getElementById("dayInput").value = defaultDay;
-    document.getElementById("startHourInput").value = defaultHour;
-    document.getElementById("durationInput").value = 1.5;
+    document.getElementById("dayInput").value = defaultDay || state.selectedMobileDay || TODAY_NAME;
+    document.getElementById("startHourInput").value = defaultHour ?? 9;
+    document.getElementById("durationInput").value = prefillOptions?.duration ?? 1.5;
     document.getElementById("noteInput").value = "";
     deleteBtn.classList.add("hidden");
+  }
+
+  // Gọi sau khi đã gán lessonId để ẩn/hiện nút Báo nghỉ chính xác
+  const initialStatus = lesson
+    ? getEffectiveStatus(lesson)
+    : (prefillOptions?.status || "normal");
+  window.selectLessonStatus(initialStatus === "expired_makeup" ? "normal" : initialStatus);
+
+  const grid = document.getElementById("statusBtnGrid");
+  if (grid) {
+    grid.classList.toggle("grid-cols-2", !lesson);
+    grid.classList.toggle("grid-cols-3", Boolean(lesson));
   }
 
   document.getElementById("lessonModal").classList.remove("hidden");
@@ -747,28 +1018,27 @@ window.saveLesson = async function (e) {
   const duration = Number(document.getElementById("durationInput").value);
   const status = document.getElementById("lessonStatus")?.value || "normal";
   const note = document.getElementById("noteInput").value.trim();
-  const endHour = startHour + duration;
 
   const errEl = document.getElementById("formError");
+  errEl.classList.add("hidden");
+
   if (!teacherName) {
-    errEl.textContent = "Vui lòng chọn giáo viên (hoặc thêm giáo viên trong 'Danh sách' trước).";
+    errEl.textContent = "Vui lòng chọn giáo viên (hoặc thêm giáo viên trong 'Quản lý danh sách' trước).";
     errEl.classList.remove("hidden");
     return;
   }
 
-  const conflict = state.lessons.find(l => {
-    if (l.id === id) return false;
-    const lStatus = l.status || (l.isMakeup ? "makeup" : "normal");
-    if (lStatus === "makeup" && isLessonStatusExpired(l)) return false;
-    if (l.day !== day || l.room !== room) return false;
-    const lStart = Number(l.startHour);
-    const lEnd = lStart + Number(l.duration || 1);
-    return startHour < lEnd && endHour > lStart;
-  });
+  const targetDate = (status === "makeup" || status === "off") ? getTargetDateForDay(day) : "";
+  const candidate = { room, day, startHour, duration, status, targetDate };
 
+  const conflict = findRoomConflict(candidate, state.lessons, id || null);
   if (conflict) {
-    errEl.textContent = `${room} đã có lịch vào ${DAY_LABELS[day]} từ ${formatHour(conflict.startHour)} đến ${formatHour(Number(conflict.startHour) + Number(conflict.duration || 1))} (${conflict.teacherName}).`;
+    const conflictType = getEffectiveStatus(conflict) === "makeup" ? "lịch Tạm thời" : "lịch Cố định";
+    const conflictEnd = Number(conflict.startHour) + Number(conflict.duration || 1.5);
+    const msg = `${conflict.room} hiện đã có ${conflictType} của ${conflict.teacherName} (${formatHour(conflict.startHour)}–${formatHour(conflictEnd)}).`;
+    errEl.textContent = msg;
     errEl.classList.remove("hidden");
+    showToast(msg, "error");
     return;
   }
 
@@ -777,6 +1047,7 @@ window.saveLesson = async function (e) {
   btn.textContent = "Đang lưu...";
 
   try {
+    suppressNextSyncToast = true;
     const payload = {
       teacherName,
       room,
@@ -786,23 +1057,26 @@ window.saveLesson = async function (e) {
       duration,
       status,
       isMakeup: status === "makeup",
-      targetDate: (status === "makeup" || status === "off") ? getTargetDateForDay(day) : "",
+      targetDate,
       note,
       updatedBy: state.currentUser.email
     };
+
     if (id) {
       const oldLesson = state.lessons.find(l => l.id === id);
       await updateDoc(doc(db, "lessons", id), payload);
-      const statusLabels = { normal: "Bình thường", makeup: "Học bù", off: "Báo nghỉ" };
+      const statusLabels = { normal: "Cố định", makeup: "Tạm thời", off: "Báo nghỉ" };
       const detail = oldLesson
-        ? `Đổi sang: ${room}, ${DAY_LABELS[day]} ${formatHour(startHour)} (${statusLabels[status] || "Bình thường"})`
+        ? `Đổi sang: ${room}, ${DAY_LABELS[day]} ${formatHour(startHour)} (${statusLabels[status] || "Cố định"})`
         : "";
       await writeActivityLog("update", oldLesson || payload, detail, id);
+      showToast("Đã cập nhật lịch phòng.", "success");
     } else {
       const createdRef = await addDoc(lessonsRef, payload);
       await writeActivityLog("create", payload, "", createdRef.id);
+      showToast("Đã đặt phòng thành công!", "success");
     }
-    closeLessonModal();
+    window.closeLessonModal();
   } catch (err) {
     errEl.textContent = "Không thể lưu lịch. Vui lòng kiểm tra kết nối mạng.";
     errEl.classList.remove("hidden");
@@ -818,13 +1092,18 @@ window.deleteLesson = async function () {
   if (!(await showAppConfirm("Bạn có chắc muốn xóa lịch phòng này không?", "Xóa lịch học", "Xóa lịch", true))) return;
 
   const target = state.lessons.find(l => l.id === id);
+  suppressNextSyncToast = true;
   await deleteDoc(doc(db, "lessons", id));
   if (target) {
     await writeActivityLog("delete", target);
   }
-  closeLessonModal();
+  window.closeLessonModal();
+  showToast("Đã xóa lịch phòng.", "info");
 };
 
+// ==========================================
+// 11. ĐỒNG HỒ INTERNET & PHÍM TẮT ESC
+// ==========================================
 syncInternetClock().then(() => {
   renderTimetable();
   cleanupExpiredLessons();
@@ -833,7 +1112,6 @@ setInterval(() => {
   renderTimetable();
   cleanupExpiredLessons();
 }, 60 * 1000);
-
 
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
@@ -855,6 +1133,8 @@ document.addEventListener("keydown", (e) => {
 
   const modalClosers = [
     ["renameModal", () => window.closeRenameModal?.()],
+    ["offSlotChoiceModal", () => window.closeOffSlotChoiceModal?.()],
+    ["helpModal", () => window.closeHelpModal?.()],
     ["lessonModal", () => window.closeLessonModal?.()],
     ["manageModal", () => window.closeManageModal?.()],
     ["historyModal", () => window.closeHistoryModal?.()],
@@ -865,8 +1145,12 @@ document.addEventListener("keydown", (e) => {
     const el = document.getElementById(id);
     if (el && !el.classList.contains("hidden")) {
       closeFn();
-      break;
+      return;
     }
   }
-});
 
+  const drawerBackdrop = document.getElementById("rightDrawerBackdrop");
+  if (drawerBackdrop && !drawerBackdrop.classList.contains("hidden")) {
+    window.closeRightDrawer?.();
+  }
+});
