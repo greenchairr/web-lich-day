@@ -206,10 +206,14 @@
         <span>Hướng dẫn sử dụng</span>
       </button>
     </nav>
+    
+    <!-- Dòng phiên bản tách riêng ở đáy ngăn kéo -->
+    <div class="px-4 py-2.5 border-t border-slate-100 bg-white text-center">
+      <span class="text-[11px] font-medium text-slate-400">@thanhvudt - tkb v1.15</span>
+    </div>
 
     <!-- Khu vực tài khoản Giáo viên luôn cố định ở cuối ngăn kéo -->
     <div class="p-4 border-t border-slate-100 bg-slate-50/70">
-      <p class="text-[11px] font-medium text-slate-400 text-center mb-2">@thanhvudt = tkb v1.24</p>
       <div id="drawerLoggedOutBox">
         <button id="drawerLoginBtn" type="button" onclick="closeRightDrawer(); openLoginModal();" class="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-sm font-semibold transition inline-flex items-center justify-center gap-2">
           <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
@@ -226,6 +230,7 @@
         </button>
       </div>
     </div>
+    
   </aside>
 
   <!-- Vùng hiển thị thông báo nổi (Toast) -->
